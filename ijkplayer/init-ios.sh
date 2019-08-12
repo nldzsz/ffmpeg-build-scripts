@@ -25,7 +25,7 @@
 # ijkplayer 默认使用的ffmpeg 版本是3.3，这里改为ffmpeg 官网的4.0版本
 IJK_FFMPEG_UPSTREAM=https://github.com/FFmpeg/FFmpeg.git
 IJK_FFMPEG_FORK=https://github.com/FFmpeg/FFmpeg.git
-IJK_FFMPEG_COMMIT=remotes/origin/release/4.0
+IJK_FFMPEG_COMMIT=remotes/origin/release/4.2
 IJK_FFMPEG_LOCAL_REPO=extra/ffmpeg
 
 # gas-preprocessor据说是一个
