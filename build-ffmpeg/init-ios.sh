@@ -22,25 +22,18 @@
 #IJK_FFMPEG_FORK=https://github.com/Bilibili/FFmpeg.git
 #IJK_FFMPEG_COMMIT=ff3.3--ijk0.8.0--20170518--001
 #IJK_FFMPEG_LOCAL_REPO=extra/ffmpeg
-# ijkplayer 默认使用的ffmpeg 版本是3.3，这里改为ffmpeg 官网的4.0版本
+# ijkplayer 默认使用的ffmpeg 版本是3.3，这里改为ffmpeg 官网的4.2版本
 IJK_FFMPEG_UPSTREAM=https://github.com/FFmpeg/FFmpeg.git
-IJK_FFMPEG_FORK=https://github.com/FFmpeg/FFmpeg.git
-IJK_FFMPEG_COMMIT=remotes/origin/release/4.2
+# 要编译的 ffmpeg 版本;如果要编译其它版本 修改这里即可
+FFMPEG_VERSION=4.2
+IJK_FFMPEG_COMMIT=remotes/origin/release/$FFMPEG_VERSION
+# ffmpeg 源码存储路径
 IJK_FFMPEG_LOCAL_REPO=extra/ffmpeg
-
-# gas-preprocessor据说是一个
-IJK_GASP_UPSTREAM=https://github.com/Bilibili/gas-preprocessor.git
-
-# Apple's gas is ancient and doesn't support modern preprocessing features like
-# .rept and has ugly macro syntax, among other things. Thus, this script
-# implements the subset of the gas preprocessor used by x264 and ffmpeg
-# that isn't supported by Apple's gas.
-# 意思是说它是一个工具，用来使apple的编译器编译时支持modern preprocessing的工具(这是我的理解？)
-# https://github.com/Bilibili/gas-preprocessor.git
 
 # 显示当前shell的所有变量(环境变量，自定义变量，与bash接口相关的变量)
 set -e
 TOOLS=tools
+EXTERNAL=external
 
 FF_ALL_ARCHS_IOS6_SDK="armv7 armv7s i386"
 FF_ALL_ARCHS_IOS7_SDK="armv7 armv7s arm64 i386 x86_64"
@@ -62,11 +55,32 @@ function echo_ffmpeg_version() {
     echo $IJK_FFMPEG_COMMIT
 }
 
-function pull_common() {
-    git --version
-    echo "== pull gas-preprocessor base =="
-    sh $TOOLS/pull-repo-base.sh $IJK_GASP_UPSTREAM extra/gas-preprocessor
+# 获取git库的当前分支名
+function obtain_git_branch {
+  br=`git branch | grep "*"`
+  echo ${br/* /}
+}
 
+function pull_common() {
+    echo "== check build env ! =="
+    # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等
+    sh $TOOLS/check-build-env.sh
+
+    git --version
+
+    # 拉取 x264源码
+    echo "== pull xh264 base =="
+    sh $EXTERNAL/init-x264.sh
+
+    # 拉取 fdkaac源码
+    echo "== pull fdkaac base =="
+    sh $EXTERNAL/init-fdk-aac.sh
+
+    # 拉取 mp3lame源码
+    echo "== pull mp3lame base =="
+    sh $EXTERNAL/init-mp3lame.sh
+
+    # 拉取 ffmpeg源码
     echo "== pull ffmpeg base =="
     sh $TOOLS/pull-repo-base.sh $IJK_FFMPEG_UPSTREAM $IJK_FFMPEG_LOCAL_REPO
 }
@@ -74,15 +88,19 @@ function pull_common() {
 function pull_fork() {
     echo "== pull ffmpeg fork $1 =="
 #    sh $TOOLS/pull-repo-ref.sh $IJK_FFMPEG_FORK ios/ffmpeg-$1 ${IJK_FFMPEG_LOCAL_REPO}
-# 这里直接copy 过去
+    # 这里直接copy 过去
     if [ -d ios/ffmpeg-$1 ]; then
         rm -rf ios/ffmpeg-$1
     fi
     cp -rf $IJK_FFMPEG_LOCAL_REPO ios/ffmpeg-$1
     cd ios/ffmpeg-$1
-# 创建本地分支ijkplayer 并且关联到IJK_FFMPEG_COMMIT指定的远程分支
-    git checkout -b ijkplayer ${IJK_FFMPEG_COMMIT}
-# 进入最近一次的目录，这里就是进入cd ijkplayer源码所在目 
+    # 创建本地分支ijkplayer 并且关联到IJK_FFMPEG_COMMIT指定的远程分支
+    result=`obtain_git_branch`
+    if [[ $result != $FFMPEG_VERSION ]]; then
+        # 避免再次切换分支会出现 fatal: A branch named xxx already exists 错误；不用管
+        git checkout -b $FFMPEG_VERSION ${IJK_FFMPEG_COMMIT}
+    fi
+    # 进入最近一次的目录，这里就是进入cd 编译脚本所在目录
     cd -
 }
 
@@ -97,15 +115,14 @@ function pull_fork_all() {
 
 # 找到ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m文件，
 # 并将文件中kIJKFFRequiredFFmpegVersion的ffmpeg版本号替换为这里实际使用的版本号
-function sync_ff_version() {
-    sed -i '' "s/static const char \*kIJKFFRequiredFFmpegVersion\ \=\ .*/static const char *kIJKFFRequiredFFmpegVersion = \"${IJK_FFMPEG_COMMIT}\";/g" ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m
-}
+# function sync_ff_version() {
+#     sed -i '' "s/static const char \*kIJKFFRequiredFFmpegVersion\ \=\ .*/static const char *kIJKFFRequiredFFmpegVersion = \"${IJK_FFMPEG_COMMIT}\";/g" ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m
+# }
 
 #=== sh脚本执行开始 ==== #
 # $FF_TARGET 表示脚本执行时输入的第一个参数
 # 如果参数为 ffmpeg-version 则表示打印出要使用的ffmpeg版本
 # 可以指定要编译的cpu架构类型，比如armv7s 也可以为all或者没有参数 表示全部cpu架构都编译
-
 # ------ case 语句 ------
 # armv7|armv7s|arm64|i386|x86_64 表示 如果$FF_TARGET的值为armv7,armv7s,arm64,i386,x86_64中任何一个都可以;注意这里不能替换为||
 # * 表示任何字符串
@@ -122,7 +139,5 @@ case "$FF_TARGET" in
         pull_fork_all
     ;;
 esac
-
-sync_ff_version
 #=== sh脚本执行结束 ==== #
 
