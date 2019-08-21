@@ -17,28 +17,23 @@
 #
 
 # !======= shell 注释 =======
-#IJK_FFMPEG_UPSTREAM=git://git.videolan.org/ffmpeg.git
-#IJK_FFMPEG_UPSTREAM=https://github.com/Bilibili/FFmpeg.git
-#IJK_FFMPEG_FORK=https://github.com/Bilibili/FFmpeg.git
-#IJK_FFMPEG_COMMIT=ff3.3--ijk0.8.0--20170518--001
-#IJK_FFMPEG_LOCAL_REPO=extra/ffmpeg
-# ijkplayer 默认使用的ffmpeg 版本是3.3，这里改为ffmpeg 官网的4.2版本
-IJK_FFMPEG_UPSTREAM=https://github.com/FFmpeg/FFmpeg.git
-# 要编译的 ffmpeg 版本;如果要编译其它版本 修改这里即可
+FFMPEG_UPSTREAM=https://github.com/FFmpeg/FFmpeg.git
+# 要编译的 ffmpeg 版本这里为4.2;如果要编译其它版本 修改这里即可
 FFMPEG_VERSION=4.2
-IJK_FFMPEG_COMMIT=remotes/origin/release/$FFMPEG_VERSION
-# ffmpeg 源码存储路径
-IJK_FFMPEG_LOCAL_REPO=extra/ffmpeg
+FFMPEG_COMMIT=remotes/origin/release/$FFMPEG_VERSION
 
 # 显示当前shell的所有变量(环境变量，自定义变量，与bash接口相关的变量)
 set -e
+# 工具脚本路径
 TOOLS=tools
+# 三方库脚本x264 lame fdk-aac路径
 EXTERNAL=external
+# ffmpeg 源码存储路径
+FFMPEG_LOCAL_REPO=extra/ffmpeg
 
-FF_ALL_ARCHS_IOS6_SDK="armv7 armv7s i386"
-FF_ALL_ARCHS_IOS7_SDK="armv7 armv7s arm64 i386 x86_64"
-FF_ALL_ARCHS_IOS8_SDK="armv7 arm64 i386 x86_64"
-FF_ALL_ARCHS=$FF_ALL_ARCHS_IOS8_SDK
+# 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
+# FF_ALL_ARCHS="armv7 armv7s arm64 i386 x86_64"
+FF_ALL_ARCHS="arm64 x86_64"
 
 # $1 表示执行shell脚本时输入的参数 比如./init-ios.sh arm64 x86_64 $1的值为arm64;$1的值为x86_64
 # $0 当前脚本的文件名
@@ -52,7 +47,7 @@ FF_ALL_ARCHS=$FF_ALL_ARCHS_IOS8_SDK
 FF_TARGET=$1
 
 function echo_ffmpeg_version() {
-    echo $IJK_FFMPEG_COMMIT
+    echo $FFMPEG_COMMIT
 }
 
 # 获取git库的当前分支名
@@ -61,7 +56,10 @@ function obtain_git_branch {
   echo ${br/* /}
 }
 
+# 源码fork到本地的路径;请勿随便更改
+FORK_SOURCE=ios/forksource
 function pull_common() {
+    
     echo "== check build env ! =="
     # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等
     sh $TOOLS/check-build-env.sh
@@ -70,35 +68,35 @@ function pull_common() {
 
     # 拉取 x264源码
     echo "== pull xh264 base =="
-    sh $EXTERNAL/init-x264.sh
+    sh $EXTERNAL/init-x264.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
 
     # 拉取 fdkaac源码
     echo "== pull fdkaac base =="
-    sh $EXTERNAL/init-fdk-aac.sh
+    sh $EXTERNAL/init-fdk-aac.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
 
     # 拉取 mp3lame源码
     echo "== pull mp3lame base =="
-    sh $EXTERNAL/init-mp3lame.sh
+    sh $EXTERNAL/init-mp3lame.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
 
     # 拉取 ffmpeg源码
     echo "== pull ffmpeg base =="
-    sh $TOOLS/pull-repo-base.sh $IJK_FFMPEG_UPSTREAM $IJK_FFMPEG_LOCAL_REPO
+    sh $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
 }
 
 function pull_fork() {
     echo "== pull ffmpeg fork $1 =="
-#    sh $TOOLS/pull-repo-ref.sh $IJK_FFMPEG_FORK ios/ffmpeg-$1 ${IJK_FFMPEG_LOCAL_REPO}
+#    sh $TOOLS/pull-repo-ref.sh $IJK_FFMPEG_FORK ios/ffmpeg-$1 ${FFMPEG_LOCAL_REPO}
     # 这里直接copy 过去
-    if [ -d ios/ffmpeg-$1 ]; then
-        rm -rf ios/ffmpeg-$1
+    if [ -d $FORK_SOURCE/ffmpeg-$1 ]; then
+        rm -rf $FORK_SOURCE/ffmpeg-$1
     fi
-    cp -rf $IJK_FFMPEG_LOCAL_REPO ios/ffmpeg-$1
-    cd ios/ffmpeg-$1
-    # 创建本地分支ijkplayer 并且关联到IJK_FFMPEG_COMMIT指定的远程分支
+    cp -rf $FFMPEG_LOCAL_REPO $FORK_SOURCE/ffmpeg-$1
+    cd $FORK_SOURCE/ffmpeg-$1
+    # 创建本地分支ijkplayer 并且关联到FFMPEG_COMMIT指定的远程分支
     result=`obtain_git_branch`
     if [[ $result != $FFMPEG_VERSION ]]; then
         # 避免再次切换分支会出现 fatal: A branch named xxx already exists 错误；不用管
-        git checkout -b $FFMPEG_VERSION ${IJK_FFMPEG_COMMIT}
+        git checkout -b $FFMPEG_VERSION ${FFMPEG_COMMIT}
     fi
     # 进入最近一次的目录，这里就是进入cd 编译脚本所在目录
     cd -
@@ -116,7 +114,7 @@ function pull_fork_all() {
 # 找到ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m文件，
 # 并将文件中kIJKFFRequiredFFmpegVersion的ffmpeg版本号替换为这里实际使用的版本号
 # function sync_ff_version() {
-#     sed -i '' "s/static const char \*kIJKFFRequiredFFmpegVersion\ \=\ .*/static const char *kIJKFFRequiredFFmpegVersion = \"${IJK_FFMPEG_COMMIT}\";/g" ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m
+#     sed -i '' "s/static const char \*kIJKFFRequiredFFmpegVersion\ \=\ .*/static const char *kIJKFFRequiredFFmpegVersion = \"${FFMPEG_COMMIT}\";/g" ios/IJKMediaPlayer/IJKMediaPlayer/IJKFFMoviePlayerController.m
 # }
 
 #=== sh脚本执行开始 ==== #

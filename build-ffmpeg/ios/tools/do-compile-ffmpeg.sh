@@ -193,7 +193,7 @@ echo "===================="
 echo "[*] make ios toolchain $FF_BUILD_NAME"
 echo "===================="
 
-FF_BUILD_SOURCE="$FF_BUILD_ROOT/$FF_BUILD_NAME"
+FF_BUILD_SOURCE="$FF_BUILD_ROOT/forksource/$FF_BUILD_NAME"
 FF_BUILD_PREFIX="$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output"
 #--prefix：静态库输出目录
 FFMPEG_CFG_FLAGS="$FFMPEG_CFG_FLAGS --prefix=$FF_BUILD_PREFIX"
@@ -231,39 +231,40 @@ FFMPEG_DEP_LIBS=
 EXT_LIBS="ssl x264 fdk-aac mp3lame"
 for lib in $EXT_LIBS
 do
-echo "\n--------------------"
-echo "[*] check $lib"
-echo "----------------------"
-FF_BUILD_NAME=$lib-$FF_ARCH
+    echo "\n--------------------"
+    echo "[*] check $lib"
+    echo "----------------------"
+    FF_BUILD_NAME=$lib-$FF_ARCH
 
-FFMPEG_DEP_INC=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/include
-FFMPEG_DEP_LIB=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/lib
+    FFMPEG_DEP_INC=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/include
+    FFMPEG_DEP_LIB=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/lib
 
-ENABLE_FLAGS=
-LD_FLAGS=
-if [ $lib = "ssl" ]; then
-    ENABLE_FLAGS="--enable-openssl"
-LD_FLAGS="-lssl -lcrypto"
-fi
+    ENABLE_FLAGS=
+    LD_FLAGS=
+    if [ $lib = "ssl" ]; then
+        ENABLE_FLAGS="--enable-openssl"
+    LD_FLAGS="-lssl -lcrypto"
+    fi
+    # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
+    # 否则外部库无法加载到ffmpeg中
+    if [ $lib = "x264" ]; then
+        ENABLE_FLAGS="--enable-gpl --enable-libx264 --enable-encoder=libx264 --enable-decoder=h264"
+    fi
 
-if [ $lib = "x264" ]; then
-    ENABLE_FLAGS="--enable-gpl --enable-libx264"
-fi
+    if [ $lib = "fdk-aac" ]; then
+        ENABLE_FLAGS="--enable-nonfree --enable-libfdk-aac --enable-encoder=libfdk_aac --enable-decoder=libfdk_aac"
+    fi
 
-if [ $lib = "fdk-aac" ]; then
-    ENABLE_FLAGS="--enable-libfdk-aac --enable-nonfree"
-fi
+    if [ $lib = "mp3lame" ]; then
+        ENABLE_FLAGS="--enable-libmp3lame --enable-encoder=libmp3lame --enable-decoder=libmp3lame"
+    fi
 
-if [ $lib = "mp3lame" ]; then
-    ENABLE_FLAGS="--enable-libmp3lame"
-fi
+    if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
+        FFMPEG_CFG_FLAGS="$FFMPEG_CFG_FLAGS $ENABLE_FLAGS"
 
-if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
-    FFMPEG_CFG_FLAGS="$FFMPEG_CFG_FLAGS $ENABLE_FLAGS"
-
-    FFMPEG_CFLAGS="$FFMPEG_CFLAGS -I${FFMPEG_DEP_INC}"
-    FFMPEG_DEP_LIBS="$FFMPEG_DEP_LIBS -L${FFMPEG_DEP_LIB} $LD_FLAGS"
-fi
+        FFMPEG_CFLAGS="$FFMPEG_CFLAGS -I${FFMPEG_DEP_INC}"
+        FFMPEG_DEP_LIBS="$FFMPEG_DEP_LIBS -L${FFMPEG_DEP_LIB} $LD_FLAGS"
+    fi
 done
 
 #--------------------

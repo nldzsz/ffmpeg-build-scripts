@@ -16,33 +16,23 @@
 # limitations under the License.
 #
 
-
+# 要编译的版本 这里也可以修改版本号
 TARGET_VERSION=lame-3.100
 IJK_UPSTREAM=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/$TARGET_VERSION.tar.gz
 DEST_EXTRA=extra
 DEST_DIR=extra/$TARGET_VERSION
-ARCHS="arm64 x86_64"
 
 set -e
+
+# $1 编译平台 $2 平台对应的cpu架构类型集合 $3源码fork到本地的路径
 PLATPORM=$1
-PLATPORM_build_dir=ios
-if [ $1 == "android" ]; then
-    PLATPORM_build_dir=android/contrib
-fi
-case $PLATPORM in
-    "android"|"ios")
-        echo "platmform is $PLATPORM"
-    ;;
-    *)
-        echo "invalid platform, must be ios or android"
-        exit 1
-    ;;
-esac
+ARCHS=$2
+PLATPORM_build_dir=$3
 
 echo "== download lame =="
 # 若没有下载过源代码
 if [ ! -d $DEST_DIR ]; then
-# 下载指定的.tar.gz文件
+    # 下载指定的.tar.gz文件
     cd $DEST_EXTRA
     curl -O $IJK_UPSTREAM
     tar zxf $TARGET_VERSION.tar.gz

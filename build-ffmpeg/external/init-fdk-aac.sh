@@ -16,27 +16,18 @@
 # limitations under the License.
 #
 
+# 要编译的版本 这里也可以修改版本号
 TARGET_VERSION=fdk-aac-2.0.0
 IJK_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
 DEST_EXTRA=extra
 DEST_DIR=extra/$TARGET_VERSION
-ARCHS="arm64 x86_64"
 
 set -e
+
+# $1 编译平台 $2 平台对应的cpu架构类型集合 $3源码fork到本地的路径
 PLATPORM=$1
-PLATPORM_build_dir=ios
-if [ $1 == "android" ]; then
-    PLATPORM_build_dir=android/contrib
-fi
-case $PLATPORM in
-    "android"|"ios")
-        echo "platmform is $PLATPORM"
-    ;;
-    *)
-        echo "invalid platform, must be ios or android"
-        exit 1
-    ;;
-esac
+ARCHS=$2
+PLATPORM_build_dir=$3
 
 echo "== download fdk_aac =="
 # 若没有下载过源代码

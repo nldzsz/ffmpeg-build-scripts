@@ -5,6 +5,10 @@
 ## Build generated
 build/
 DerivedData/
+extra/
+*/ios/*arm64/
+*/ios/*x86_64/
+forksource/
 
 ## Various settings
 *.pbxuser

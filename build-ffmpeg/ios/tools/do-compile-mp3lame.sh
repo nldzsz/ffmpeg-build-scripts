@@ -22,8 +22,7 @@
 labrry_name=mp3lame
 CONFIGURE_FLAGS="--disable-shared --disable-frontend"
 
-ARCHS="arm64 x86_64"
-target_ios=10.0
+
 
 #ARCHS="arm64 x86_64 i386 armv7 armv7s"
 ARCHS="arm64 x86_64"
@@ -36,8 +35,11 @@ OUT=`pwd`/"build"
 
 CWD=`pwd`
 
-TARGET=$1
-if [ "$TARGET" = "clean" ]; then
+# 接受外部输入 $1代表编译平台 $2代表编译系统的最低版本要求
+ARCH=$1
+target_ios=$2
+
+if [ "$1" = "clean" ]; then
     echo "=================="
     for ARCH in $ARCHS
     do
@@ -51,45 +53,42 @@ if [ "$TARGET" = "clean" ]; then
     rm -rf build/$labrry_name-*
     echo "clean success"
 else
-    for ARCH in $ARCHS
-    do
-        echo "building $ARCH..."
-        SOURCE="$labrry_name-$ARCH"
-        cd $SOURCE
+    echo "building lame $ARCH..."
+    SOURCE="$CWD/forksource/$labrry_name-$ARCH"
+    cd $SOURCE
 
-        if [ "$ARCH" = "i386" -o "$ARCH" = "x86_64" ]
+    if [ "$ARCH" = "i386" -o "$ARCH" = "x86_64" ]
+    then
+        PLATFORM="iPhoneSimulator"
+        if [ "$ARCH" = "x86_64" ]
         then
-            PLATFORM="iPhoneSimulator"
-            if [ "$ARCH" = "x86_64" ]
-            then
-                SIMULATOR="-mios-simulator-version-min=$target_ios"
-                HOST=x86_64-apple-darwin
-            else
-                SIMULATOR="-mios-simulator-version-min=$target_ios"
-                HOST=i386-apple-darwin
-            fi
+            SIMULATOR="-mios-simulator-version-min=$target_ios"
+            HOST=x86_64-apple-darwin
         else
-            PLATFORM="iPhoneOS"
-            SIMULATOR=
-            HOST=arm-apple-darwin
+            SIMULATOR="-mios-simulator-version-min=$target_ios"
+            HOST=i386-apple-darwin
         fi
+    else
+        PLATFORM="iPhoneOS"
+        SIMULATOR=
+        HOST=arm-apple-darwin
+    fi
 
-        XCRUN_SDK=`echo $PLATFORM | tr '[:upper:]' '[:lower:]'`
-        
-        CC="xcrun -sdk $XCRUN_SDK clang -arch $ARCH"
-        #AS="$CWD/$SOURCE/extras/gas-preprocessor.pl $CC"
-        CFLAGS="-arch $ARCH $SIMULATOR -fembed-bitcode"
-        CXXFLAGS="$CFLAGS"
-        LDFLAGS="$CFLAGS"
+    XCRUN_SDK=`echo $PLATFORM | tr '[:upper:]' '[:lower:]'`
+    
+    CC="xcrun -sdk $XCRUN_SDK clang -arch $ARCH"
+    #AS="$CWD/$SOURCE/extras/gas-preprocessor.pl $CC"
+    CFLAGS="-arch $ARCH $SIMULATOR -fembed-bitcode"
+    CXXFLAGS="$CFLAGS"
+    LDFLAGS="$CFLAGS"
 
-        CC=$CC $CWD/$SOURCE/configure \
-            CFLAGS="$CFLAGS" \
-            LDFLAGS="$LDFLAGS" \
-            $CONFIGURE_FLAGS \
-            --host=$HOST \
-            --prefix="$OUT/$SOURCE/output" \
+    CC=$CC $CWD/$SOURCE/configure \
+        CFLAGS="$CFLAGS" \
+        LDFLAGS="$LDFLAGS" \
+        $CONFIGURE_FLAGS \
+        --host=$HOST \
+        --prefix="$OUT/$SOURCE/output" \
 
-        make -j3 install
-        cd $CWD
-    done
+    make -j3 install
+    cd $CWD
 fi
