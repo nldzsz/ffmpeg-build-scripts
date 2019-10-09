@@ -98,7 +98,6 @@ function pull_fork() {
         # 避免再次切换分支会出现 fatal: A branch named xxx already exists 错误；不用管
         git checkout -b $FFMPEG_VERSION ${FFMPEG_COMMIT}
     fi
-    sed -i '' "s/AVMediaType/FF_AVMediaType/g" `grep -rl AVMediaType $FORK_SOURCE/ffmpeg-$1`
     # 进入最近一次的目录，这里就是进入cd 编译脚本所在目录
     cd -
 }

@@ -228,11 +228,12 @@ FFMPEG_LDFLAGS="$FFMPEG_CFLAGS"
 FFMPEG_DEP_LIBS=
 
 # 外部库
-EXT_LIBS="ssl x264 fdk-aac mp3lame"
+#EXT_LIBS="ssl x264 fdk-aac mp3lame"
+EXT_LIBS=${@:2}
 for lib in $EXT_LIBS
 do
     echo "\n--------------------"
-    echo "[*] check $lib"
+    echo "[*] check111111 $lib"
     echo "----------------------"
     FF_BUILD_NAME=$lib-$FF_ARCH
 

@@ -28,12 +28,15 @@ target_ios=10.0
 lIBS=(x264 fdk-aac mp3lame)
 LIBFLAGS=(TRUE FALSE TRUE)
 
+# 要和上面对应上
+FF_TARGET_EXTRA="mp3lame x264"
+
 #----------
 UNI_BUILD_ROOT=`pwd`
 UNI_TMP="$UNI_BUILD_ROOT/tmp"
 UNI_TMP_LLVM_VER_FILE="$UNI_TMP/llvm.ver.txt"
 FF_TARGET=$1
-FF_TARGET_EXTRA=$2
+
 set -e
 #----------
 
@@ -159,7 +162,8 @@ do_lipo_all_one () {
     	xcrun $lipocmd
     	finallipoLibs="$finallipoLibs $UNI_BUILD_ROOT/build/universal-$ARCH/lib/libxrzffmpeg.a"
 	done
-
+    
+    mkdir -p $UNI_BUILD_ROOT/build/universal/lib
     lipocmd="lipo -create $finallipoLibs -output $UNI_BUILD_ROOT/build/universal/lib/libxrzffmpeg.a"
     echo "$lipocmd"
     xcrun $lipocmd
@@ -215,7 +219,7 @@ elif [ "$FF_TARGET" = "all" ]; then
         sh tools/do-compile-ffmpeg.sh $ARCH $FF_TARGET_EXTRA
     done
 
-    # do_lipo_all
+     do_lipo_all
     do_lipo_all_one
 elif [ "$FF_TARGET" = "check" ]; then
     # 分支下必须要有语句 否则出错
