@@ -38,6 +38,7 @@ CWD=`pwd`
 # 接受外部输入 $1代表编译平台 $2代表编译系统的最低版本要求
 ARCH=$1
 target_ios=$2
+SOURCE=forksource/$labrry_name-$ARCH
 
 if [ "$1" = "clean" ]; then
     echo "=================="
@@ -54,7 +55,6 @@ if [ "$1" = "clean" ]; then
     echo "clean success"
 else
     echo "building lame $ARCH..."
-    SOURCE="$CWD/forksource/$labrry_name-$ARCH"
     cd $SOURCE
 
     if [ "$ARCH" = "i386" -o "$ARCH" = "x86_64" ]
@@ -87,7 +87,7 @@ else
         LDFLAGS="$LDFLAGS" \
         $CONFIGURE_FLAGS \
         --host=$HOST \
-        --prefix="$OUT/$SOURCE/output" \
+        --prefix="$OUT/$labrry_name-$ARCH/output" \
 
     make -j3 install
     cd $CWD

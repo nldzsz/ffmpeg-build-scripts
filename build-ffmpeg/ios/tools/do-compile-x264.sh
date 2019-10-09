@@ -9,13 +9,13 @@ OUT=`pwd`/"build"
 # 接受参数 作为编译平台
 ARCH=$1
 # 编译的最低版本要求
-target_ios=$1
+target_ios=$2
 
 # 开始编译
 CWD=`pwd`
 
 echo "building x264 $ARCH..."
-SOURCE="$CWD/forksource/x264-$ARCH"
+SOURCE="forksource/x264-$ARCH"
 cd $SOURCE
 CFLAGS="-arch $ARCH"
 ASFLAGS=
@@ -69,7 +69,7 @@ CC=$CC $CWD/$SOURCE/configure \
     --extra-cflags="$CFLAGS" \
     --extra-asflags="$ASFLAGS" \
     --extra-ldflags="$LDFLAGS" \
-    --prefix="$OUT/$SOURCE/output" || exit 1
+    --prefix="$OUT/x264-$ARCH/output" || exit 1
 
 make -j3 install || exit 1
 cd $CWD

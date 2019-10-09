@@ -32,8 +32,8 @@ CWD=`pwd`
 # 接受外部输入 $1代表编译平台 $2代表编译系统的最低版本要求
 ARCH=$1
 target_ios=$2
-echo "building $ARCH..."
-SOURCE="$CWD/forksource/$labrry_name-$ARCH"
+echo "building fdk-aac $ARCH..."
+SOURCE="forksource/$labrry_name-$ARCH"
 cd $SOURCE
 
 CFLAGS="-arch $ARCH"
@@ -86,7 +86,7 @@ $CWD/$SOURCE/configure \
     CFLAGS="$CFLAGS" \
     LDFLAGS="$LDFLAGS" \
     CPPFLAGS="$CFLAGS" \
-    --prefix="$OUT/$SOURCE/output"
+    --prefix="$OUT/$labrry_name-$ARCH/output"
 
 make -j3 install
 cd $CWD

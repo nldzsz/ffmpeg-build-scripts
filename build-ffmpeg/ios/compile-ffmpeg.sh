@@ -26,7 +26,7 @@ target_ios=10.0
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加三个库
 lIBS=(x264 fdk-aac mp3lame)
-LIBFLAGS=(TRUE TRUE TRUE)
+LIBFLAGS=(TRUE FALSE TRUE)
 
 #----------
 UNI_BUILD_ROOT=`pwd`
@@ -121,6 +121,50 @@ do_lipo_all () {
     done
 }
 
+# 将所有的.a库合并成一个库
+do_lipo_all_one () {
+	
+   	finallipoLibs=""
+    for ARCH in $FF_ALL_ARCHS
+    do
+    	mkdir -p $UNI_BUILD_ROOT/build/universal-$ARCH/lib
+    	lipoLibs=""
+    	
+    	# ffmpeg库
+    	for LIB_FILE in $FF_LIBS
+    	do
+        	ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/output/lib/$LIB_FILE.a"
+        	echo $ARCH_LIB_FILE
+        	if [ -f "$ARCH_LIB_FILE" ]; then
+            	lipoLibs="$lipoLibs $ARCH_LIB_FILE"
+        	else
+            	echo "skip $LIB_FILE of $ARCH";
+        	fi
+    	done
+
+    	# 三方库 EXT_LIBS
+	    for LIB in $EXT_LIBS
+	    do
+    		LIB_FILE=lib$LIB.a
+	        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/$LIB-$ARCH/output/lib/$LIB_FILE"
+	        if [ -f "$ARCH_LIB_FILE" ]; then
+	            lipoLibs="$lipoLibs $ARCH_LIB_FILE"
+	        else
+	            echo "skip $LIB_FILE of $ARCH";
+	        fi
+	    done
+
+	    lipocmd="libtool -static $lipoLibs -o $UNI_BUILD_ROOT/build/universal-$ARCH/lib/libxrzffmpeg.a"
+    	echo "$lipocmd"
+    	xcrun $lipocmd
+    	finallipoLibs="$finallipoLibs $UNI_BUILD_ROOT/build/universal-$ARCH/lib/libxrzffmpeg.a"
+	done
+
+    lipocmd="lipo -create $finallipoLibs -output $UNI_BUILD_ROOT/build/universal/lib/libxrzffmpeg.a"
+    echo "$lipocmd"
+    xcrun $lipocmd
+}
+
 # 配置外部库
 function config_external_lib()
 {
@@ -171,7 +215,8 @@ elif [ "$FF_TARGET" = "all" ]; then
         sh tools/do-compile-ffmpeg.sh $ARCH $FF_TARGET_EXTRA
     done
 
-    do_lipo_all
+    # do_lipo_all
+    do_lipo_all_one
 elif [ "$FF_TARGET" = "check" ]; then
     # 分支下必须要有语句 否则出错
     echo "check"

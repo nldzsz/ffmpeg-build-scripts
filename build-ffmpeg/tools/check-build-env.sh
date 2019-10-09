@@ -18,6 +18,14 @@ if [[ ! `which yasm` ]]; then
 fi
 echo -e "check yasm ok......"
 
+# autoconf用于基于GNU的make生成工具，有些库不支持Libtool;
+echo "check autoconf env......"
+if [[ ! `which autoconf` ]]; then
+    echo "autoconf not found begin install....."
+    brew install autoconf || exit 1
+fi
+echo -e "check autoconfl ok......"
+
 # gas-preprocessor.pl是汇编将汇编代码转换成目标平台机(ios)机器码的工具
 echo "check gas-preprocessor.pl env......"
 if [[ ! `which gas-preprocessor.pl` ]]; then
