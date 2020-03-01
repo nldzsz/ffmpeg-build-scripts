@@ -1,9 +1,9 @@
 #! /usr/bin/env bash
 
-# 源码存放目录
+# 第三方源码存放目录
 SOURCE_DIR=extra
 # 编译目录
-BUILD_DIR=build
+BUILD_DIR=build/Mac
 # 编译最终结果存放目录
 BUILD_UNIVERSAL_DIR=$BUILD_DIR/universal
 # 各个库的编译结果存放目录
