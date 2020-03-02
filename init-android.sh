@@ -17,6 +17,7 @@
 #
 
 # !======= shell 注释 =======
+# ffmpeg git地址
 FFMPEG_UPSTREAM=https://github.com/FFmpeg/FFmpeg.git
 # 要编译的 ffmpeg 版本这里为4.2;如果要编译其它版本 修改这里即可
 FFMPEG_VERSION=4.2
@@ -24,16 +25,16 @@ FFMPEG_COMMIT=remotes/origin/release/$FFMPEG_VERSION
 
 # 显示当前shell的所有变量(环境变量，自定义变量，与bash接口相关的变量)
 set -e
-# 工具脚本路径
+# 公用工具脚本路径
 TOOLS=tools
-# 三方库脚本x264 lame fdk-aac路径
+# 获取三方库(x264 lame fdk-aac等)代码脚本路径
 EXTERNAL=external
 # ffmpeg 源码存储路径
 FFMPEG_LOCAL_REPO=extra/ffmpeg
 
 # 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
 # FF_ALL_ARCHS="armv7 armv7s arm64 i386 x86_64"
-FF_ALL_ARCHS="arm64 x86_64"
+FF_ALL_ARCHS="armv7 arm64"
 
 # $1 表示执行shell脚本时输入的参数 比如./init-ios.sh arm64 x86_64 $1的值为arm64;$1的值为x86_64
 # $0 当前脚本的文件名
@@ -44,10 +45,11 @@ FF_ALL_ARCHS="arm64 x86_64"
 # "$@"依然为"$1" "$2" … "$n"
 # $$ 脚本所在的进程ID
 # $? 上个命令的退出状态，或函数的返回值。一般命令返回值 执行成功返回0 失败返回1
+# 具体要编译的平台
 FF_TARGET=$1
 
 function echo_ffmpeg_version() {
-    echo $FFMPEG_COMMIT
+    echo $FFMPEG_VERSION
 }
 
 # 获取git库的当前分支名
@@ -57,7 +59,7 @@ function obtain_git_branch {
 }
 
 # 源码fork到本地的路径;请勿随便更改
-FORK_SOURCE=ios/forksource
+FORK_SOURCE=android/forksource
 function pull_common() {
     
     echo "== check build env ! =="
@@ -67,17 +69,17 @@ function pull_common() {
     git --version
 
     # 拉取 x264源码
-    echo "== pull xh264 base =="
-    sh $EXTERNAL/init-x264.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
+    echo "== pull x264 base =="
+    sh $EXTERNAL/init-x264.sh android "$FF_ALL_ARCHS" $FORK_SOURCE
 
-    # 拉取 fdkaac源码
-    echo "== pull fdkaac base =="
-    sh $EXTERNAL/init-fdk-aac.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
-
-    # 拉取 mp3lame源码
-    echo "== pull mp3lame base =="
-    sh $EXTERNAL/init-mp3lame.sh ios "$FF_ALL_ARCHS" $FORK_SOURCE
-
+#    # 拉取 fdkaac源码
+#    echo "== pull fdkaac base =="
+#    sh $EXTERNAL/init-fdk-aac.sh android "$FF_ALL_ARCHS" $FORK_SOURCE
+#
+#    # 拉取 mp3lame源码
+#    echo "== pull mp3lame base =="
+#    sh $EXTERNAL/init-mp3lame.sh android "$FF_ALL_ARCHS" $FORK_SOURCE
+#
     # 拉取 ffmpeg源码
     echo "== pull ffmpeg base =="
     sh $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
@@ -92,7 +94,7 @@ function pull_fork() {
     fi
     cp -rf $FFMPEG_LOCAL_REPO $FORK_SOURCE/ffmpeg-$1
     cd $FORK_SOURCE/ffmpeg-$1
-    # 创建本地分支ijkplayer 并且关联到FFMPEG_COMMIT指定的远程分支
+    # 创建本地分支 并且关联到FFMPEG_COMMIT指定的远程分支
     result=`obtain_git_branch`
     if [[ $result != $FFMPEG_VERSION ]]; then
         # 避免再次切换分支会出现 fatal: A branch named xxx already exists 错误；不用管
@@ -128,7 +130,7 @@ case "$FF_TARGET" in
     ffmpeg-version)
         echo_ffmpeg_version
     ;;
-    armv7|armv7s|arm64|i386|x86_64)
+    armv5|armv7|arm64|i386|x86_64)
         pull_common
         pull_fork $FF_TARGET
     ;;
@@ -138,4 +140,3 @@ case "$FF_TARGET" in
     ;;
 esac
 #=== sh脚本执行结束 ==== #
-

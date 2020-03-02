@@ -18,7 +18,7 @@
 
 # 要编译的版本 这里也可以修改版本号
 TARGET_VERSION=fdk-aac-2.0.0
-IJK_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
+FDKAAC_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
 DEST_EXTRA=extra
 DEST_DIR=extra/$TARGET_VERSION
 
@@ -29,10 +29,11 @@ PLATPORM=$1
 ARCHS=$2
 PLATPORM_build_dir=$3
 
-echo "== download fdk_aac =="
+echo "== init fdk_aac =="
 # 若没有下载过源代码
 if [ ! -d $DEST_DIR ]; then
 # 下载指定的.tar.gz文件
+    echo "== download fdk_aac =="
     cd $DEST_EXTRA
     curl -O $IJK_UPSTREAM
     tar zxf $TARGET_VERSION.tar.gz
@@ -41,6 +42,7 @@ if [ ! -d $DEST_DIR ]; then
     echo "download $DEST_DIR success"
 fi
 
+echo "== copy fdk_aac to fork dir =="
 # 将源码拷贝到指定平台目录
 for arch in $ARCHS
 do
@@ -48,8 +50,10 @@ do
         rm -rf $PLATPORM_build_dir/fdk-aac-$arch
     fi
 
+# -rf 拷贝指定目录及其所有的子目录下文件
     cp -rf $DEST_DIR $PLATPORM_build_dir/fdk-aac-$arch
 done
+echo "== init fdk_aac sucess =="
 
 
 
