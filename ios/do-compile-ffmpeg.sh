@@ -45,7 +45,7 @@ if [ -z "$FF_ARCH" ]; then
 fi
 
 
-FF_BUILD_ROOT=`pwd`
+FF_BUILD_ROOT=`pwd`/ios
 FF_TAGET_OS="darwin"
 
 # ---shell 中export、bash、source的区别
@@ -194,7 +194,7 @@ echo "[*] make ios toolchain $FF_BUILD_NAME"
 echo "===================="
 
 FF_BUILD_SOURCE="$FF_BUILD_ROOT/forksource/$FF_BUILD_NAME"
-FF_BUILD_PREFIX="$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output"
+FF_BUILD_PREFIX="$FF_BUILD_ROOT/build/$FF_BUILD_NAME"
 #--prefix：静态库输出目录
 FFMPEG_CFG_FLAGS="$FFMPEG_CFG_FLAGS --prefix=$FF_BUILD_PREFIX"
 
@@ -228,17 +228,17 @@ FFMPEG_LDFLAGS="$FFMPEG_CFLAGS"
 FFMPEG_DEP_LIBS=
 
 # 外部库
-#EXT_LIBS="ssl x264 fdk-aac mp3lame"
-EXT_LIBS=${@:2}
-for lib in $EXT_LIBS
+#${#array[@]}获取数组长度用于循环
+for(( i=0;i<${#lIBS[@]};i++))
 do
+    lib=${lIBS[i]};
     echo "\n--------------------"
     echo "[*] check111111 $lib"
     echo "----------------------"
     FF_BUILD_NAME=$lib-$FF_ARCH
 
-    FFMPEG_DEP_INC=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/include
-    FFMPEG_DEP_LIB=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/output/lib
+    FFMPEG_DEP_INC=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/include
+    FFMPEG_DEP_LIB=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/lib
 
     ENABLE_FLAGS=
     LD_FLAGS=
@@ -286,26 +286,19 @@ fi
 export DEBUG_INFORMATION_FORMAT=dwarf-with-dsym
 
 cd $FF_BUILD_SOURCE
-if [ -f "./config.h" ]; then
-    echo 'reuse configure'
-else
-    echo "config: $FFMPEG_CFG_FLAGS $FFMPEG_CFG_CPU --extra-cflags:$FFMPEG_CFLAGS --extra-ldflags:$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS $FF_XCRUN_CC "
-    ./configure \
-        $FFMPEG_CFG_FLAGS \
-        --cc="$FF_XCRUN_CC" \
-        $FFMPEG_CFG_CPU \
-        --extra-cflags="$FFMPEG_CFLAGS" \
-        --extra-cxxflags="$FFMPEG_CFLAGS" \
-        --extra-ldflags="$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS"
-    make clean
-fi
+echo "config: $FFMPEG_CFG_FLAGS $FFMPEG_CFG_CPU --extra-cflags:$FFMPEG_CFLAGS --extra-ldflags:$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS $FF_XCRUN_CC "
+./configure \
+    $FFMPEG_CFG_FLAGS \
+    --cc="$FF_XCRUN_CC" \
+    $FFMPEG_CFG_CPU \
+    --extra-cflags="$FFMPEG_CFLAGS" \
+    --extra-cxxflags="$FFMPEG_CFLAGS" \
+    --extra-ldflags="$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS"
 
 #--------------------
 echo "\n--------------------"
 echo "[*] compile ffmpeg"
 echo "--------------------"
-cp config.* $FF_BUILD_PREFIX
 make -j3 $FF_GASPP_EXPORT
 make install
-mkdir -p $FF_BUILD_PREFIX/include/libffmpeg
-cp -f config.h $FF_BUILD_PREFIX/include/libffmpeg/config.h
+cd -

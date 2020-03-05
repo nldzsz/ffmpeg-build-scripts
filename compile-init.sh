@@ -32,23 +32,28 @@ X264_COMMIT=remotes/origin/$X264_VERSION
 X264_LOCAL_REPO=extra/x264
 
 # fdkaac curl 地址 这里可以自己更改版本号
-FDKAAC_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
 FDKAAC_VERSION=fdk-aac-2.0.0
+FDKAAC_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
 FDKAAC_LOCAL_REPO=extra
 
 #mp3lame curl 地址 这里可以自己更改版本号
-MP3LAME_UPSTREAM=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/$TARGET_VERSION.tar.gz
 MP3LAME_VERSION=lame-3.100
+MP3LAME_UPSTREAM=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/$MP3LAME_VERSION.tar.gz
 MP3LAME_LOCAL_REPO=extra
+
+# 标记是否拉取过了源码
+PULL_TOUCH=extra/touch
 
 # 显示当前shell的所有变量(环境变量，自定义变量，与bash接口相关的变量)
 set -e
 # 公用工具脚本路径
 TOOLS=tools
 
-# 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
+# 各个平台的cpu架构
 # FF_ALL_ARCHS="armv7 armv7s arm64 i386 x86_64"
-FF_ALL_ARCHS="arm64 x86_64"
+FF_ALL_ARCHS_ANDROID="armv7a arm64"
+FF_ALL_ARCHS_IOS="arm64 x86_64"
+FF_ALL_ARCHS_MAC="x86_64"
 
 # $1 表示执行shell脚本时输入的参数 比如./init-ios.sh arm64 x86_64 $1的值为arm64;$1的值为x86_64
 # $0 当前脚本的文件名
@@ -97,6 +102,10 @@ function pull_common() {
     # 拉取 ffmpeg源码
     echo "== pull ffmpeg base =="
     sh $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
+    
+    # 创建标记
+    echo "== create touch =="
+    touch $PULL_TOUCH
 }
 
 # $1 代表平台 armv5 arm64...
@@ -113,6 +122,7 @@ function fork_from_git() {
     if [ -d $FORK_SOURCE/$2-$1 ]; then
         rm -rf $FORK_SOURCE/$2-$1
     fi
+    mkdir -p $FORK_SOURCE
     cp -rf $3 $FORK_SOURCE/$2-$1
     cd $FORK_SOURCE/$2-$1
     # 切换到指定的分支
@@ -139,19 +149,19 @@ function fork_from_curl() {
 }
 
 # ---- for 语句 ------
-# $FF_ALL_ARCHS 的取值格式为 val1 val2 val3....valn 中间为空格隔开
+# $1 的取值格式为 val1 val2 val3....valn 中间为空格隔开
 function pull_fork_all() {
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $*
     do
         # fork ffmpeg
         fork_from_git $ARCH "ffmpeg" $FFMPEG_LOCAL_REPO $FFMPEG_VERSION $FFMPEG_COMMIT
-        
+
         # fork x264
         fork_from_git $ARCH "x264" $X264_LOCAL_REPO $X264_VERSION $X264_COMMIT
-        
+
         # fork fdkaac
         fork_from_curl $ARCH "fdk-aac" $FDKAAC_LOCAL_REPO/$FDKAAC_VERSION
-        
+
         # fork mp3lame
         fork_from_curl $ARCH "mp3lame" $MP3LAME_LOCAL_REPO/$MP3LAME_VERSION
     done
@@ -170,33 +180,58 @@ function pull_fork_all() {
 # ------ case 语句 ------
 # armv7|armv7s|arm64|i386|x86_64 表示 如果$FF_TARGET的值为armv7,armv7s,arm64,i386,x86_64中任何一个都可以;注意这里不能替换为||
 # * 表示任何字符串
+OFF="on"
+if [ ! -z $2 ] && [ -f $PULL_TOUCH ] ;then
+    OFF=$2
+fi
+
 case "$FF_TARGET" in
     ffmpeg-version)
         echo_ffmpeg_version
     ;;
     clean)
         echo "=== clean forksource ===="
-        if [ -d ios/forksource ];then
+        if [ -d ios/forksource ]; then
             rm -rf ios/forksource
-        if
-        if [ -d android/forksource ];then
+        fi
+        if [ -d android/forksource ]; then
             rm -rf android/forksource
-        if
-        if [ -d mac/forksource ];then
+        fi
+        if [ -d mac/forksource ]; then
             rm -rf mac/forksource
-        if
+        fi
         echo "=== clean local source ===="
     ;;
-    ios|android|mac)
+    ios)
         FORK_SOURCE=$FF_TARGET/forksource
-        pull_common
-        pull_fork_all
+        # 不拉取最新代码
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_ALL_ARCHS_IOS
+    ;;
+    android)
+        FORK_SOURCE=$FF_TARGET/forksource
+        # 不拉取最新代码
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_ALL_ARCHS_ANDROID
+    ;;
+    mac)
+        FORK_SOURCE=$FF_TARGET/forksource
+        # 不拉取最新代码
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_ALL_ARCHS_MAC
     ;;
     all|*)
         FORK_SOURCE=ios/forksource
-        pull_common
-        pull_fork_all
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_ALL_ARCHS_IOS
     ;;
 esac
 #=== sh脚本执行结束 ==== #
-

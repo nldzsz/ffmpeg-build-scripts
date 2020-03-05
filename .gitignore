@@ -3,12 +3,16 @@
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
 ## Build generated
-build/
+*ios/build/
+*ios/forksource/
+*android/build/
+*android/forksource/
+*mac/build/
+*mac/forksource/
 DerivedData/
 extra/
 */ios/*arm64/
 */ios/*x86_64/
-forksource/
 
 ## Various settings
 *.pbxuser

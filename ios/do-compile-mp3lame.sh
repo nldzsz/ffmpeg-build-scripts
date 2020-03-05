@@ -31,14 +31,14 @@ SHELL_ROOT_DIR=`pwd`
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
 # 编译最终的输出目录；必须为绝对路径，否则生成的库不会到这里去
-OUT=`pwd`/"build"
+OUT=`pwd`/"ios/build"
 
 CWD=`pwd`
 
 # 接受外部输入 $1代表编译平台 $2代表编译系统的最低版本要求
 ARCH=$1
 target_ios=$2
-SOURCE=forksource/$labrry_name-$ARCH
+SOURCE=ios/forksource/$labrry_name-$ARCH
 
 if [ "$1" = "clean" ]; then
     echo "=================="
@@ -87,8 +87,8 @@ else
         LDFLAGS="$LDFLAGS" \
         $CONFIGURE_FLAGS \
         --host=$HOST \
-        --prefix="$OUT/$labrry_name-$ARCH/output" \
+        --prefix="$OUT/$labrry_name-$ARCH" \
 
     make -j3 install
-    cd $CWD
+    cd -
 fi

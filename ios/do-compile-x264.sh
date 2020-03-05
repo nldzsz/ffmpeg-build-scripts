@@ -5,7 +5,7 @@ CONFIGURE_FLAGS="--enable-static --enable-pic --disable-cli"
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
 # 编译最终的输出目录；必须为绝对路径，否则生成的库不会到这里去
-OUT=`pwd`/"build"
+OUT=`pwd`/"ios/build"
 # 接受参数 作为编译平台
 ARCH=$1
 # 编译的最低版本要求
@@ -15,7 +15,7 @@ target_ios=$2
 CWD=`pwd`
 
 echo "building x264 $ARCH..."
-SOURCE="forksource/x264-$ARCH"
+SOURCE="ios/forksource/x264-$ARCH"
 cd $SOURCE
 CFLAGS="-arch $ARCH"
 ASFLAGS=
@@ -69,10 +69,10 @@ CC=$CC $CWD/$SOURCE/configure \
     --extra-cflags="$CFLAGS" \
     --extra-asflags="$ASFLAGS" \
     --extra-ldflags="$LDFLAGS" \
-    --prefix="$OUT/x264-$ARCH/output" || exit 1
+    --prefix="$OUT/x264-$ARCH" || exit 1
 
 make -j3 install || exit 1
-cd $CWD
+cd -
 
 
 # ====== 此段代码无用 =======
