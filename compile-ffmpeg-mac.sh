@@ -91,7 +91,7 @@ elif [ "$FF_TARGET" = "clean" ]; then
     done
     echo "clean build cache"
     echo "================="
-    rm -rf mac/build
+    rm -rf mac/build/ffmpeg-*
     echo "clean success"
 else
     echo "Usage:"

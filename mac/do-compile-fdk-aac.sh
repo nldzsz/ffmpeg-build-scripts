@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-CONFIGURE_FLAGS="--enable-static --enable-shared --enable-pic --enable-nasm --with-pic "
+CONFIGURE_FLAGS="--enable-static --enable-shared --with-pic "
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
@@ -37,13 +37,9 @@ echo "prefix:$PREFIX"
 echo ""
 
 # 效果和./configre .... 一样
-if [ -f "./config.log" ]; then
-    echo 'reuse configure'
-else
-    ./configure \
-      ${CONFIGURE_FLAGS} \
-      --prefix=$PREFIX
-fi
+./configure \
+${CONFIGURE_FLAGS} \
+--prefix=$PREFIX
 
 make && make install
 cd -
