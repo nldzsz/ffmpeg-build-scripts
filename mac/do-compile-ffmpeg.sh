@@ -47,7 +47,9 @@ FF_CFG_FLAGS=
 # 1、关于cpu的指令优化
 # 2、关于编译器指令有关参数优化
 # 3、指定引用三方库头文件路径或者系统库的路径
-FF_EXTRA_CFLAGS=
+# fixbug:mac osX 10.15.4 (19E266)和Version 11.4 (11E146)编译时产生错误"stack_not_16_byte_aligned_error"
+# 添加 "-fno-stack-check" 即可
+FF_EXTRA_CFLAGS="-fno-stack-check"
 # 用于./configure 关于--extra-ldflags 的参数
 # 1、指定引用三方库的路径及库名称 比如-L<x264_path> -lx264
 FF_EXTRA_LDFLAGS=
