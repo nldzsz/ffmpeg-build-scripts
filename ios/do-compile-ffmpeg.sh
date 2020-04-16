@@ -248,6 +248,7 @@ do
     fi
     # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
     # 否则外部库无法加载到ffmpeg中
+    # libx264和mp3lame只提供编码功能，他们的解码是额外的库
     if [ $lib = "x264" ]; then
         ENABLE_FLAGS="--enable-gpl --enable-libx264 --enable-encoder=libx264 --enable-decoder=h264"
     fi
@@ -257,7 +258,7 @@ do
     fi
 
     if [ $lib = "mp3lame" ]; then
-        ENABLE_FLAGS="--enable-libmp3lame --enable-encoder=libmp3lame --enable-decoder=libmp3lame"
+        ENABLE_FLAGS="--enable-libmp3lame --enable-encoder=libmp3lame --enable-decoder=mp3float"
     fi
 
     if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
