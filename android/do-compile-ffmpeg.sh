@@ -218,15 +218,20 @@ echo "--extra-ldflags=$FF_EXTRA_LDFLAGS \n"
 # 各个cpu架构的源码 比如/Users/apple/devoloper/mine/ijkplayer/android/contribffmpeg-armv7a
 cd $FF_SOURCE
 # 当执行过一次./configure 会在源码根目录生成config.h文件
-if [ -f "./config.h" ]; then
-    echo 'reuse configure'
-else
-    # which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
-    ./configure $FF_CFG_FLAGS \
-        --extra-cflags="$FF_EXTRA_CFLAGS" \
-        --extra-ldflags="$FF_EXTRA_LDFLAGS"
-    make clean
-fi
+#if [ -f "./config.h" ]; then
+#    echo 'reuse configure'
+#else
+#    # which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
+#    ./configure $FF_CFG_FLAGS \
+#        --extra-cflags="$FF_EXTRA_CFLAGS" \
+#        --extra-ldflags="$FF_EXTRA_LDFLAGS"
+#    make clean
+#fi
+# which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
+./configure $FF_CFG_FLAGS \
+    --extra-cflags="$FF_EXTRA_CFLAGS" \
+    --extra-ldflags="$FF_EXTRA_LDFLAGS"
+make clean
 
 #------- 编译和连接 -------------
 #生成各个模块对应的静态或者动态库(取决于前面是生成静态还是动态库)
