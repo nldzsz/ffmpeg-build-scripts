@@ -82,26 +82,27 @@ FORK_SOURCE=ios/forksource
 function pull_common() {
     
     echo "== check build env ! =="
-    # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等
-    sh $TOOLS/check-build-env.sh
+    # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等;
+    # sh $TOOLS/check-build-env.sh 用. 相当于将脚本引用进来执行，如果出错，本shell也会退出。而sh 则是重新开辟一个新shell，脚本出错不影响本shell的继续执行
+    . $TOOLS/check-build-env.sh
 
     git --version
 
     # 拉取 x264源码
     echo "== pull x264 base =="
-    sh $TOOLS/pull-repo-base.sh $X264_UPSTREAM $X264_LOCAL_REPO
+    . $TOOLS/pull-repo-base.sh $X264_UPSTREAM $X264_LOCAL_REPO
 
     # 拉取 fdkaac源码
     echo "== pull fdkaac base =="
-    sh $TOOLS/curl-repo-base.sh $FDKAAC_UPSTREAM $FDKAAC_LOCAL_REPO $FDKAAC_VERSION
+    . $TOOLS/curl-repo-base.sh $FDKAAC_UPSTREAM $FDKAAC_LOCAL_REPO $FDKAAC_VERSION
 
     # 拉取 mp3lame源码
     echo "== pull mp3lame base =="
-    sh $TOOLS/curl-repo-base.sh $MP3LAME_UPSTREAM $MP3LAME_LOCAL_REPO $MP3LAME_VERSION
+    . $TOOLS/curl-repo-base.sh $MP3LAME_UPSTREAM $MP3LAME_LOCAL_REPO $MP3LAME_VERSION
 
     # 拉取 ffmpeg源码
     echo "== pull ffmpeg base =="
-    sh $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
+    . $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
     
     # 创建标记
     echo "== create touch =="
