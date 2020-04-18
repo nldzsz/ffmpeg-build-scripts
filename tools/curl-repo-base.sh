@@ -10,6 +10,7 @@ if [ -z $REMOTE_REPO -o -z $LOCAL_WORKSPACE -o -z $TARGET_VERSION ]; then
 elif [ ! -d $LOCAL_WORKSPACE/$TARGET_VERSION ]; then
     # 下载指定的.tar.gz文件
     echo "== download $TARGET_VERSION =="
+    echo "url $REMOTE_REPO"
     cd $LOCAL_WORKSPACE
     curl -O $REMOTE_REPO
     tar zxf $TARGET_VERSION.tar.gz

@@ -33,7 +33,7 @@ X264_LOCAL_REPO=extra/x264
 
 # fdkaac curl 地址 这里可以自己更改版本号
 FDKAAC_VERSION=fdk-aac-2.0.0
-FDKAAC_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$TARGET_VERSION.tar.gz
+FDKAAC_UPSTREAM=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/$FDKAAC_VERSION.tar.gz
 FDKAAC_LOCAL_REPO=extra
 
 #mp3lame curl 地址 这里可以自己更改版本号

@@ -23,7 +23,7 @@ set -e
 # FF_ALL_ARCHS="i386 x86_64"
 FF_ALL_ARCHS="x86_64"
 
-# 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
+# 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加3个库
 export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(TRUE TRUE TRUE)
 
@@ -52,10 +52,7 @@ config_external_lib()
 }
 
 # 命令开始执行处----------
-if [ "$FF_TARGET" = "check" ]; then
-    # 分支下必须要有语句 否则出错
-    echo "check"
-elif [ "$FF_TARGET" == "reset" ]; then
+if [ "$FF_TARGET" == "reset" ]; then
     # 重新拉取所有代码
     echo "....repull all source...."
     rm -rf mac/forksource
