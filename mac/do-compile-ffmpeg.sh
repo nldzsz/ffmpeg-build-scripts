@@ -47,9 +47,7 @@ FF_CFG_FLAGS=
 # 1、关于cpu的指令优化
 # 2、关于编译器指令有关参数优化
 # 3、指定引用三方库头文件路径或者系统库的路径
-# fixbug:mac osX 10.15.4 (19E266)和Version 11.4 (11E146)编译时产生错误"stack_not_16_byte_aligned_error"
-# 添加 "-fno-stack-check" 即可
-FF_EXTRA_CFLAGS="-fno-stack-check"
+FF_EXTRA_CFLAGS=""
 # 用于./configure 关于--extra-ldflags 的参数
 # 1、指定引用三方库的路径及库名称 比如-L<x264_path> -lx264
 FF_EXTRA_LDFLAGS=
@@ -76,6 +74,8 @@ mkdir -p $FF_PREFIX
 export COMMON_FF_CFG_FLAGS=
 . $FF_BUILD_ROOT/../config/module.sh
 
+# 开启Mac/IOS的videotoolbox GPU编码
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
 
 #导入ffmpeg的外部库
 EXT_ALL_LIBS=
@@ -130,10 +130,13 @@ echo "--extra-ldflags=$FF_EXTRA_LDFLAGS \n"
 cd $FF_SOURCE
 # 当执行过一次./configure 会在源码根目录生成config.h文件
 # which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
+# fixbug:mac osX 10.15.4 (19E266)和Version 11.4 (11E146)生成的库在调用libx264编码的avcodec_open2()函数
+# 时奔溃(报错stack_not_16_byte_aligned_error)，添加编译参数--disable-optimizations解决问题(fix：2020.5.2)
 ./configure $FF_CFG_FLAGS \
     --prefix=$FF_PREFIX \
     --extra-cflags="$FF_EXTRA_CFLAGS" \
-    --extra-ldflags="$FF_EXTRA_LDFLAGS"
+    --extra-ldflags="$FF_EXTRA_LDFLAGS" \
+    --disable-optimizations
 
 #------- 编译和连接 -------------
 #生成各个模块对应的静态或者动态库(取决于前面是生成静态还是动态库)
