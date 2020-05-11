@@ -30,9 +30,10 @@ echo -e "check autoconfl ok......"
 echo "check gas-preprocessor.pl env......"
 if [[ ! `which gas-preprocessor.pl` ]]; then
 	echo "gas-preprocessor.pl not found begin install....."
-	(curl -L $GAS_PREPROCESSOR_URL -o /usr/local/bin/gas-preprocessor.pl \
-			&& chmod +x /usr/local/bin/gas-preprocessor.pl) \
-			|| exit 1
+    git clone https://github.com/libav/gas-preprocessor
+    sudo cp gas-preprocessor/gas-preprocessor.pl /usr/local/bin/gas-preprocessor.pl
+    chmod +x /usr/local/bin/gas-preprocessor.pl
+	rm -rf gas-preprocessor
 fi
 echo -e "check gas-preprocessor.pl ok......"
 echo -e "check build env over ======="
