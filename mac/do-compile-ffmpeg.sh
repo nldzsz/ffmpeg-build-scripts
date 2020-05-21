@@ -65,7 +65,8 @@ if [ ! -d $FF_SOURCE ]; then
     exit 1
 fi
 
-FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME
+#FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME
+FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/ffmpeglib
 
 mkdir -p $FF_PREFIX
 
@@ -118,6 +119,8 @@ done
 
 FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
 
+# 进行裁剪
+FF_CFG_FLAGS="$FF_CFG_FLAGS --disable-filters";
 #--------------------
 echo ""
 echo "--------------------"

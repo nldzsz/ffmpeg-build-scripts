@@ -61,6 +61,9 @@ FF_TAGET_OS="darwin"
 export COMMON_FF_CFG_FLAGS=
 source $FF_BUILD_ROOT/../config/module.sh
 
+# 开启Mac/IOS的videotoolbox GPU编码
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
+
 # FFMPEG_CFG_FLAGS变量的配置最终都会作为./configure 命令的输入参数
 # 最终会将变量COMMON_FF_CFG_FLAGS的值导入到变量FFMPEG_CFG_FLAGS中
 FFMPEG_CFG_FLAGS=

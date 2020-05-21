@@ -25,7 +25,7 @@ FF_ALL_ARCHS="x86_64"
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加3个库
 export lIBS=(x264 fdk-aac mp3lame)
-export LIBFLAGS=(TRUE TRUE TRUE)
+export LIBFLAGS=(TRUE FALSE TRUE)
 
 #----------
 UNI_BUILD_ROOT=`pwd`
