@@ -9,6 +9,7 @@
 *android/forksource/
 *mac/build/
 *mac/forksource/
+mac-source-xcode/
 DerivedData/
 extra/
 */ios/*arm64/
