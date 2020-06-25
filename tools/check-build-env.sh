@@ -11,7 +11,7 @@ if [[ $uname = "Darwin" ]]  && [[ ! `which brew` ]]; then
     echo -e "check Homebrew ok......"
 fi
 
-# yasm是Mac平台和PC平台的汇编器；先检查是否有汇编器
+# yasm是Mac平台和PC平台的汇编器，用于OSX,windows,linux系统的ffmpeg编译；
 echo "check yasm env......"
 if [[ ! `which yasm` ]]; then
 	echo "yasm not found begin install....."
@@ -22,9 +22,12 @@ if [[ ! `which yasm` ]]; then
         # Linux平台和windows平台
         wget http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz || exit 1
         tar zxvf yasm-1.3.0.tar.gz || exit 1
+	rm yasm-1.3.0.tar.gz
         cd yasm-1.3.0
         ./configure || exit 1
-        make && sudo make install || exit 1
+        sudo make && sudo make install || exit 1
+	cd -
+	rm -rf yasm-1.3.0
     fi
 fi
 echo -e "check yasm ok......"
@@ -38,7 +41,7 @@ if [[ $uname = "Darwin" ]]  && [[ ! `which autoconf` ]]; then
 fi
 
 if [[ $uname = "Darwin" ]]  && [[ ! `which gas-preprocessor.pl` ]]; then
-    # gas-preprocessor.pl是IOS平台用的汇编器
+    # gas-preprocessor.pl是IOS平台用的汇编器；android则已经包含在NDK目录中了，不需要单独再指定
     echo "check gas-preprocessor.pl env......"
 	echo "gas-preprocessor.pl not found begin install....."
     git clone https://github.com/libav/gas-preprocessor

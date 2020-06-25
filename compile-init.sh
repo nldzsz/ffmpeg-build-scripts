@@ -87,7 +87,7 @@ function pull_common() {
     . $TOOLS/check-build-env.sh
 
     git --version
-
+	pwd
     # 拉取 x264源码
     echo "== pull x264 base =="
     . $TOOLS/pull-repo-base.sh $X264_UPSTREAM $X264_LOCAL_REPO
