@@ -17,7 +17,7 @@ if [[ ! `which curl` ]]; then
     echo "curl not found begin install....."
     if [ "$(uname)" == "Darwin"];then
         # Mac平台;自带
-        
+        echo "curl has install....."
     elif [ "$(uname)" == "Linux"];then
         # Linux平台
         sudo apt install curl || exit 1
