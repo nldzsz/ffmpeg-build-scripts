@@ -26,7 +26,7 @@ target_ios=10.0
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加三个库
 export lIBS=(x264 fdk-aac mp3lame)
-export LIBFLAGS=(TRUE TRUE TRUE)
+export LIBFLAGS=(TRUE FALSE TRUE)
 
 #----------
 UNI_BUILD_ROOT=`pwd`/ios
@@ -84,6 +84,7 @@ do_lipo_lib () {
 do_lipo_all () {
     mkdir -p $UNI_BUILD_ROOT/build/universal/lib
     echo "lipo archs: $FF_ALL_ARCHS"
+    # 将ffmpeg的各个模块生成的库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
     for FF_LIB in $FF_LIBS
     do
         do_lipo_ffmpeg "$FF_LIB.a";
@@ -112,14 +113,19 @@ do_lipo_all () {
             # cp -f tools/config.h                        "$UNI_INC_DIR/libffmpeg/config.h"
         fi
     done
-
-    for EXT_LIB in $EXT_LIBS
+    
+    # 将所有的三方库合并为一个
+    #${#array[@]}获取数组长度用于循环
+    for(( i=0;i<${#lIBS[@]};i++))
     do
-        do_lipo_lib "$EXT_LIB";
-    done
+        lib=${lIBS[i]};
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            do_lipo_lib "$EXT_LIB";
+        fi
+    done;
 }
 
-# 将所有的.a库合并成一个库
+# 将所有的.a库合并成一个库(包括三方库和ffmpeg的库)
 do_lipo_all_one () {
 	
    	finallipoLibs=""
@@ -166,14 +172,13 @@ do_lipo_all_one () {
     rm -rf $UNI_BUILD_ROOT/build/tmp-*
 }
 
-# 配置外部库
-function config_external_lib()
+# 编译外部库
+function compile_external_lib()
 {
     
-
+    #${#array[@]}获取数组长度用于循环
     for(( i=0;i<${#lIBS[@]};i++)) 
     do
-        #${#array[@]}获取数组长度用于循环
         lib=${lIBS[i]};
         for FF_ARCH in $FF_ALL_ARCHS 
         do
@@ -185,11 +190,6 @@ function config_external_lib()
                     # 编译
                     . ./ios/do-compile-$lib.sh $FF_ARCH $target_ios
                 fi
-#            else
-#                if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
-#                    # 删除 该库
-#                    rm "${FFMPEG_DEP_LIB}/lib$lib.a"
-#                fi
             fi
         done;
     done;
@@ -203,7 +203,7 @@ if [ "$FF_TARGET" = "armv7" -o "$FF_TARGET" = "armv7s" -o "$FF_TARGET" = "arm64"
     fi
     
     # 先编译外部库
-    config_external_lib
+    compile_external_lib
     . ./ios/do-compile-ffmpeg.sh $FF_TARGET
     do_lipo_all
 elif [ "$FF_TARGET" = "i386" -o "$FF_TARGET" = "x86_64" ]; then
@@ -213,7 +213,7 @@ elif [ "$FF_TARGET" = "i386" -o "$FF_TARGET" = "x86_64" ]; then
     fi
     
     # 先编译外部库
-    config_external_lib
+    compile_external_lib
     . ./ios/do-compile-ffmpeg.sh $FF_TARGET
     do_lipo_all
 elif [ "$FF_TARGET" = "lipo" ]; then
@@ -225,7 +225,7 @@ elif [ "$FF_TARGET" = "all" ]; then
     fi
     
     # 先编译外部库
-    config_external_lib
+    compile_external_lib
     
     # 清除之前编译的
     rm -rf ios/build/ffmpeg-*
