@@ -15,10 +15,10 @@ fi
 echo "check curl env......"
 if [[ ! `which curl` ]]; then
     echo "curl not found begin install....."
-    if [ "$(uname)" == "Darwin"];then
+    if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台;自带
-        
-    elif [ "$(uname)" == "Linux"];then
+        echo "curl has install....."
+    elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台
         sudo apt install curl || exit 1
     else
@@ -32,7 +32,7 @@ echo -e "check curl ok......"
 echo "check yasm env......"
 if [[ ! `which yasm` ]]; then
 	echo "yasm not found begin install....."
-    if [ "$(uname)" == "Darwin"];then
+    if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台
         brew install yasm || exit 1
     else
