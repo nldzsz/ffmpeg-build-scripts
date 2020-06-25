@@ -71,7 +71,7 @@ if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64
     
     # 开始之前先检查fork的源代码是否存在
     if [ ! -d android/forksource ]; then
-        . ./compile-init.sh ios "offline"
+        . ./compile-init.sh android "offline"
     fi
     
     # 清除之前编译的
@@ -86,7 +86,7 @@ if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64
 elif [ "$FF_TARGET" = "all" ]; then
     # 开始之前先检查fork的源代码是否存在
     if [ ! -d android/forksource ]; then
-        . ./compile-init.sh ios "offline"
+        . ./compile-init.sh android "offline"
     fi
     
     # 清除之前编译的
