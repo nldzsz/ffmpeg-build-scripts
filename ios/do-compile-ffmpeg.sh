@@ -264,7 +264,7 @@ do
         ENABLE_FLAGS="--enable-libmp3lame --enable-encoder=libmp3lame --enable-decoder=mp3float"
     fi
 
-    if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
+    if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
         FFMPEG_CFG_FLAGS="$FFMPEG_CFG_FLAGS $ENABLE_FLAGS"
 
         FFMPEG_CFLAGS="$FFMPEG_CFLAGS -I${FFMPEG_DEP_INC}"

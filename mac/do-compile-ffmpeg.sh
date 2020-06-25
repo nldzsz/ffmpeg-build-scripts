@@ -120,7 +120,9 @@ done
 FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
 
 # 进行裁剪
-FF_CFG_FLAGS="$FF_CFG_FLAGS --disable-filters";
+FF_CFG_FLAGS="$FF_CFG_FLAGS";
+# 开启调试;如果关闭 则注释即可
+#FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-debug --disable-optimizations --enable-ffmpeg --enable-ffplay --enable-ffprobe";
 #--------------------
 echo ""
 echo "--------------------"

@@ -31,8 +31,8 @@ export LIBFLAGS=(TRUE FALSE TRUE)
 UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1
 
-# 配置外部库
-config_external_lib()
+# 编译外部库
+compile_external_lib()
 {
     #${#array[@]}获取数组长度用于循环
     for(( i=0;i<${#lIBS[@]};i++)) 
@@ -68,7 +68,7 @@ elif [ "$FF_TARGET" == "all" ]; then
     for ARCH in $FF_ALL_ARCHS
     do
         # 先编译外部库
-        config_external_lib $ARCH
+        compile_external_lib $ARCH
         
         # 最后编译ffmpeg
         . ./mac/do-compile-ffmpeg.sh $ARCH
