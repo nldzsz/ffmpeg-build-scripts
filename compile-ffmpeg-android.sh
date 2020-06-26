@@ -27,7 +27,7 @@ FF_ALL_ARCHS="armv7a arm64"
 export FF_ANDROID_API=21
 # 根据实际情况填写ndk路径，这里采用ndk-r20版本 进行本次编译
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20
+export NDK_PATH=/home/zsz/android-ndk-r20b
 #export NDK_PATH=/Users/apple/Library/Android/sdk/ndk-bundle
 # 要和自己的ndk中的对应，再NDK_PATH下的toolchains目录下查看，比如aarch64-linux-android-4.9后面的是4.9，这里就写4.9
 export FF_CC_VER=4.9
