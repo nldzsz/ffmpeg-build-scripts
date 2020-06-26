@@ -70,14 +70,11 @@ case "$UNAME_S" in
 esac
 
 FF_CROSS_PREFIX=
-if [ "$FF_ARCH" = "x86_64" ]
-then
+if [ "$FF_ARCH" = "x86_64" ]; then
     FF_CROSS_PREFIX=x86_64-linux-android
-elif [ "$FF_ARCH" = "armv7" ]
-then
+elif [ "$FF_ARCH" = "armv7a" ]; then
     FF_CROSS_PREFIX=arm-linux-androideabi
-elif [ "$FF_ARCH" = "arm64" ]
-then
+elif [ "$FF_ARCH" = "arm64" ]; then
     FF_CROSS_PREFIX=aarch64-linux-android
 else
     FF_CROSS_PREFIX=arm-linux-androideabi
@@ -98,7 +95,18 @@ echo ""
 # ==== 创建独立工具链 参考https://developer.android.com/ndk/guides/standalone_toolchain
 FF_TOOLCHAIN_PATH=$FF_BUILD_ROOT/forksource/toolchain-$FF_ARCH
 FF_TOOLCHAIN_TOUCH="$FF_TOOLCHAIN_PATH/touch"
-if [ ! -f "$FF_TOOLCHAIN_TOUCH" ]; then
+FF_SAVE_NDK_VERSION="1.0"
+if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
+    FF_SAVE_NDK_VERSION=`cat "$FF_TOOLCHAIN_TOUCH"`
+fi
+
+if [  "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
+    
+    # NDK版本不一样了，则先删除以前的
+    if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
+        rm -rf $FF_TOOLCHAIN_PATH
+    fi
+    
 # 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
     $NDK_PATH/build/tools/make-standalone-toolchain.sh \
         --install-dir=$FF_TOOLCHAIN_PATH \
@@ -106,6 +114,7 @@ if [ ! -f "$FF_TOOLCHAIN_TOUCH" ]; then
         --toolchain=${FF_CROSS_PREFIX}-${FF_CC_VER}
 # 避免重复执行make-standalone-toolchain.sh指令
     touch $FF_TOOLCHAIN_TOUCH;
+    echo "$IJK_NDK_REL"> $FF_TOOLCHAIN_TOUCH
 fi
 # ==== 创建独立工具链
 
@@ -113,9 +122,11 @@ export FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
 export PATH=$FF_TOOLCHAIN_PATH/bin/:$PATH
 # 编译缓存，可以加快编译
 #export CC="ccache ${FF_CROSS_PREFIX}-gcc"
-export CPP=${FF_CROSS_PREFIX}-cpp
+# fixbug:ndk20版本之后，预编译器cpp已经内置到CC中了，所以如果这里再指定会出现找不到cpp的错误
+#export CPP=${FF_CROSS_PREFIX}-cpp
 export AR=${FF_CROSS_PREFIX}-ar
-# 开启该选项后x264的编译选项 -DSTAK_ALIGNMENT=会加入到AS中，导致编译失败。如果没有定义这个，-DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
+# 开启该选项后x264的编译选项 -DSTAK_ALIGNMENT=会加入到AS中，导致编译失败。如果没有定义这个，
+# -DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
 #export AS=${FF_CROSS_PREFIX}-as
 export NM=${FF_CROSS_PREFIX}-nm
 export CC=${FF_CROSS_PREFIX}-gcc

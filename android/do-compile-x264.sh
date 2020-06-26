@@ -11,11 +11,14 @@ ARCH=$1
 # 编译的API要求
 target_API=$2
 
+echo ""
+echo "building x264 $ARCH..."
+echo ""
+
 # 创建独立工具链
 # 通过此种方式执行sh 文件中的export变量才有效。如果换成sh ./do-envbase-tool.sh $ARCH 则不行
 . ./android/do-envbase-tool.sh $ARCH
 
-echo "building x264 $ARCH..."
 
 SOURCE="android/forksource/x264-$ARCH"
 cd $SOURCE
@@ -24,16 +27,13 @@ CROSS_PREFIX=""
 HOST=""
 PREFIX=$OUT/x264-$ARCH
 
-if [ "$ARCH" = "x86_64" ]
-then
+if [ "$ARCH" = "x86_64" ]; then
     CROSS_PREFIX=x86_64-linux-android-
     HOST="x86_64-linux"
-elif [ "$ARCH" = "armv7" ]
-then
+elif [ "$ARCH" = "armv7a" ]; then
     CROSS_PREFIX=arm-linux-androideabi-
     HOST="arm-linux"
-elif [ "$ARCH" = "arm64" ]
-then
+elif [ "$ARCH" = "arm64" ]; then
     CROSS_PREFIX=aarch64-linux-android-
     HOST="aarch64-linux"
 else
@@ -46,6 +46,12 @@ echo "sysroot:$FF_SYSROOT"
 echo "cross-prefix:$CROSS_PREFIX"
 echo "prefix:$PREFIX"
 echo "host:$HOST"
+
+# 取消外部的干扰
+unset CFLAGS
+unset CPPFLAGS
+unset LDFLAGS
+unset PKG_CONFIG_PATH
 
 # 效果和./configre .... 一样
 ./configure \

@@ -84,7 +84,7 @@ elif [ "$FF_ARCH" = "arm64" ]; then
     FF_BUILD_NAME=ffmpeg-arm64
     FF_CROSS_PREFIX=aarch64-linux-android
     FF_CROSS_ARCH="--arch=aarch64"
-    # arm64 默认就开启了neon，所以不需要像armv7那样手动开启
+    # arm64 默认就开启了neon，所以不需要像armv7a那样手动开启
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-yasm"
     FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS"
     FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS"
