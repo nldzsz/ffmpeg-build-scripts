@@ -27,10 +27,14 @@ FF_ALL_ARCHS="armv7a arm64"
 export FF_ANDROID_API=21
 # 根据实际情况填写ndk路径，这里采用ndk-r20版本 进行本次编译
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
-#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
 # 要和自己的ndk中的对应，再NDK_PATH下的toolchains目录下查看，比如aarch64-linux-android-4.9后面的是4.9，这里就写4.9
 export FF_CC_VER=4.9
+# 开启编译动态库，默认开启
+export FF_COMPILE_SHARED=TRUE
+# 开启编译静态库,默认关闭
+export FF_COMPILE_STATIC=TRUE
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
 export lIBS=(x264 fdk-aac mp3lame)
@@ -56,12 +60,6 @@ config_external_lib()
                 # 编译
                 . ./android/do-compile-$lib.sh $FF_ARCH
             fi
-#        else
-#            if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" -o  -f "${FFMPEG_DEP_LIB}/lib$lib.so" ]; then
-#                # 删除 该库
-#                rm "${FFMPEG_DEP_LIB}/lib$lib.a"
-#                rm "${FFMPEG_DEP_LIB}/lib$lib.so"
-#            fi
         fi
     done;
 }
