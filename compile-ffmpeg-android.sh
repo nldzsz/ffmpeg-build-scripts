@@ -31,6 +31,10 @@ export NDK_PATH=/home/zsz/android-ndk-r20b
 #export NDK_PATH=/Users/apple/Library/Android/sdk/ndk-bundle
 # 要和自己的ndk中的对应，再NDK_PATH下的toolchains目录下查看，比如aarch64-linux-android-4.9后面的是4.9，这里就写4.9
 export FF_CC_VER=4.9
+# 开启编译动态库，默认开启
+export FF_COMPILE_SHARED=TRUE
+# 开启编译静态库,默认关闭
+export FF_COMPILE_STATIC=TRUE
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
 export lIBS=(x264 fdk-aac mp3lame)
@@ -56,12 +60,6 @@ config_external_lib()
                 # 编译
                 . ./android/do-compile-$lib.sh $FF_ARCH
             fi
-#        else
-#            if [ -f "${FFMPEG_DEP_LIB}/lib$lib.a" -o  -f "${FFMPEG_DEP_LIB}/lib$lib.so" ]; then
-#                # 删除 该库
-#                rm "${FFMPEG_DEP_LIB}/lib$lib.a"
-#                rm "${FFMPEG_DEP_LIB}/lib$lib.so"
-#            fi
         fi
     done;
 }
@@ -75,7 +73,7 @@ if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64
     fi
     
     # 清除之前编译的
-    rm -rf android/build/ffmpeg-*
+    rm -rf android/build
     
     # 先编译外部库
     config_external_lib $FF_TARGET
@@ -90,7 +88,7 @@ elif [ "$FF_TARGET" = "all" ]; then
     fi
     
     # 清除之前编译的
-    rm -rf android/build/ffmpeg-*
+    rm -rf android/build
     
     for ARCH in $FF_ALL_ARCHS
     do
@@ -101,34 +99,31 @@ elif [ "$FF_TARGET" = "all" ]; then
         . ./android/do-compile-ffmpeg.sh $ARCH
     done
 
-elif [ "$FF_TARGET" = "check" ]; then
-    # 分支下必须要有语句 否则出错
-    echo "check"
-elif [ "$FF_TARGET" == "reset" ]; then
+elif [ "$FF_TARGET" == "pull" ]; then
     # 重新拉取所有代码
     echo "....repull all source...."
-    . ./init-config.sh android "offline"
+    . ./compile-init.sh android
 elif [ "$FF_TARGET" = "clean" ]; then
 
-    echo "=================="
-    for ARCH in $FF_ALL_ARCHS
-    do
-        echo "clean ffmpeg-$ARCH"
-        echo "=================="
-        cd android/forksource/ffmpeg-$ARCH && git clean -xdf && cd -
-        cd android/forksource/x264-$ARCH && git clean -xdf && cd -
-        cd android/forksource/mp3lame-$ARCH && make clean && cd -
-        cd android/forksource/fdk-aac-$ARCH && make clean && cd -
-    done
-    echo "clean build cache"
-    echo "================="
-    rm -rf android/ffmpeg-*
-    echo "clean success"
+    echo "====== begin clean ======"
+#    for ARCH in $FF_ALL_ARCHS
+#    do
+#        echo "clean ffmpeg-$ARCH"
+#        echo "=================="
+#        cd android/forksource/ffmpeg-$ARCH && git clean -xdf && cd -
+#        cd android/forksource/x264-$ARCH && git clean -xdf && cd -
+#        cd android/forksource/mp3lame-$ARCH && make clean && cd -
+#        cd android/forksource/fdk-aac-$ARCH && make clean && cd -
+#    done
+    rm -rf android/forksource
+    rm -rf android/build
+    echo "====== end clean ======"
+    
 else
     echo "Usage:"
-    echo "  compile-ffmpeg.sh armv7|arm64|x86_64"
+    echo "  compile-ffmpeg.sh armv7a|arm64|x86_64"
     echo "  compile-ffmpeg.sh all"
     echo "  compile-ffmpeg.sh clean"
-    echo "  compile-ffmpeg.sh reset"
+    echo "  compile-ffmpeg.sh pull"
     exit 1
 fi

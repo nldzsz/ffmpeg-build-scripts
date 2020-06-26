@@ -27,11 +27,13 @@ ARCH=$1
 # 编译的API要求
 target_API=$2
 
+echo ""
+echo "building fdk-aac $ARCH..."
+echo ""
+
 # 创建独立工具链
 # 通过此种方式执行sh 文件中的export变量才有效。如果换成sh ./do-envbase-tool.sh $ARCH 则不行
 . ./android/do-envbase-tool.sh $ARCH
-
-echo "building fdk-aac $ARCH..."
 
 SOURCE="android/forksource/fdk-aac-$ARCH"
 cd $SOURCE
@@ -42,7 +44,7 @@ PREFIX=$OUT/fdk-aac-$ARCH
 if [ "$ARCH" = "x86_64" ]
 then
     HOST="x86_64-linux"
-elif [ "$ARCH" = "armv7" ]
+elif [ "$ARCH" = "armv7a" ]
 then
     HOST="arm-linux"
 elif [ "$ARCH" = "arm64" ]
@@ -57,7 +59,7 @@ echo "sysroot:$FF_SYSROOT"
 echo "prefix:$PREFIX"
 echo "host:$HOST"
 
-CFLAGS="${CFLAGS} --sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
+CFLAGS=" --sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
 CPPFLAGS="${CFLAGS}"
 LDFLAGS="${LDFLAGS} -L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
 

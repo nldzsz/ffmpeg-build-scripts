@@ -84,7 +84,7 @@ elif [ "$FF_ARCH" = "arm64" ]; then
     FF_BUILD_NAME=ffmpeg-arm64
     FF_CROSS_PREFIX=aarch64-linux-android
     FF_CROSS_ARCH="--arch=aarch64"
-    # arm64 默认就开启了neon，所以不需要像armv7那样手动开启
+    # arm64 默认就开启了neon，所以不需要像armv7a那样手动开启
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-yasm"
     FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS"
     FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS"
@@ -242,23 +242,23 @@ echo ""
 echo "--------------------"
 echo "[*] compile ffmpeg"
 echo "--------------------"
-cp config.* $FF_PREFIX
+#cp config.* $FF_PREFIX
 make $FF_MAKE_FLAGS > /dev/null
 make install
 mkdir -p $FF_PREFIX/include/libffmpeg
-cp -f config.h $FF_PREFIX/include/libffmpeg/config.h
+#cp -f config.h $FF_PREFIX/include/libffmpeg/config.h
 cd -
 
 #--------- 将前面生成的静态库合并成一个动态库 这里会将外部.a库也合并进来-----------
-$LD -rpath-link=$FF_SYSROOT/usr/lib \
-    -L$FF_SYSROOT/usr/lib \
-    -soname libxrzffmpeg.so -shared -nostdlib -Bsymbolic --whole-archive --no-undefined \
-    -o $FF_PREFIX/libxrzffmpeg.so \
-    $FF_PREFIX/lib/libavcodec.a $FF_PREFIX/lib/libavfilter.a $FF_PREFIX/lib/libavformat.a \
-    $FF_PREFIX/lib/libavutil.a $FF_PREFIX/lib/libswresample.a $FF_PREFIX/lib/libswscale.a \
-    $EXT_ALL_LIBS \
-    -lc -lm -lz -ldl -llog --dynamic-linker=/system/bin/linker \
-    $FF_TOOLCHAIN_PATH/lib/gcc/$FF_CROSS_PREFIX/4.9.x/libgcc.a
+#$LD -rpath-link=$FF_SYSROOT/usr/lib \
+#    -L$FF_SYSROOT/usr/lib \
+#    -soname libxrzffmpeg.so -shared -nostdlib -Bsymbolic --whole-archive --no-undefined \
+#    -o $FF_PREFIX/libxrzffmpeg.so \
+#    $FF_PREFIX/lib/libavcodec.a $FF_PREFIX/lib/libavfilter.a $FF_PREFIX/lib/libavformat.a \
+#    $FF_PREFIX/lib/libavutil.a $FF_PREFIX/lib/libswresample.a $FF_PREFIX/lib/libswscale.a \
+#    $EXT_ALL_LIBS \
+#    -lc -lm -lz -ldl -llog --dynamic-linker=/system/bin/linker \
+#    $FF_TOOLCHAIN_PATH/lib/gcc/$FF_CROSS_PREFIX/4.9.x/libgcc.a
 
 # 对包的大小进行优化，根据测试 优化由19M到3.3M了
-$STRIP $FF_PREFIX/libxrzffmpeg.so
+#$STRIP $FF_PREFIX/libxrzffmpeg.so

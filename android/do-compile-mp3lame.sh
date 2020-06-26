@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend "
+CONFIGURE_FLAGS="--disable-frontend "
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
@@ -27,26 +27,38 @@ ARCH=$1
 # 编译的API要求
 target_API=$2
 
+echo ""
+echo "building mp3lame $ARCH..."
+echo ""
+
 # 创建独立工具链
 # 通过此种方式执行sh 文件中的export变量才有效。如果换成sh ./do-envbase-tool.sh $ARCH 则不行
 . ./android/do-envbase-tool.sh $ARCH
 
-echo "building mp3lame $ARCH..."
 
 SOURCE="android/forksource/mp3lame-$ARCH"
 cd $SOURCE
 
+# 默认为编译动态库
+shared_enable="--enable-shared"
+static_enable="--disable-static"
+# 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
+if [ $FF_COMPILE_SHARED != "TRUE" ];then
+shared_enable="--disable-shared"
+fi
+if [ $FF_COMPILE_STATIC == "TRUE" ];then
+static_enable="--enable-static"
+fi
+CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
+
 CROSS_PREFIX=""
 PREFIX=$OUT/mp3lame-$ARCH
 
-if [ "$ARCH" = "x86_64" ]
-then
+if [ "$ARCH" = "x86_64" ]; then
     CROSS_PREFIX=x86_64-linux-android
-elif [ "$ARCH" = "armv7" ]
-then
+elif [ "$ARCH" = "armv7a" ]; then
     CROSS_PREFIX=arm-linux-androideabi
-elif [ "$ARCH" = "arm64" ]
-then
+elif [ "$ARCH" = "arm64" ]; then
     CROSS_PREFIX=aarch64-linux-android
 else
     CROSS_PREFIX=arm-linux-androideabi
@@ -57,7 +69,7 @@ echo "sysroot:$FF_SYSROOT"
 echo "cross-prefix:$CROSS_PREFIX"
 echo "prefix:$PREFIX"
 
-CFLAGS="${CFLAGS} --sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
+CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
 CPPFLAGS="${CFLAGS}"
 LDFLAGS="${LDFLAGS} -L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
 
