@@ -28,8 +28,21 @@ shared_enable="--enable-shared"
 static_enable="--disable-static"
 # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
 if [ $FF_COMPILE_SHARED == "TRUE" ];then
-sed -i "" "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
-sed -i "" "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+UNAME_S=$(uname -s)
+case "$UNAME_S" in
+    Darwin)
+        sed -i "" "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+        sed -i "" "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+    ;;
+    Darwin)
+        sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+        sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+    ;;
+    CYGWIN_NT-*)
+        sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+        sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+    ;;
+esac
 else
 shared_enable="--disable-shared"
 fi
