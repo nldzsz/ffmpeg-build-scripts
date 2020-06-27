@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-CONFIGURE_FLAGS="--enable-static --enable-shared --enable-pic --enable-nasm --with-pic "
+CONFIGURE_FLAGS="--with-pic "
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
@@ -37,6 +37,17 @@ echo ""
 
 SOURCE="android/forksource/fdk-aac-$ARCH"
 cd $SOURCE
+# 默认为编译动态库;fdk_aac 这个选项无效
+shared_enable="--enable-shared"
+static_enable=""
+# 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
+if [ $FF_COMPILE_SHARED != "TRUE" ];then
+shared_enable=""
+fi
+if [ $FF_COMPILE_STATIC == "TRUE" ];then
+static_enable="--enable-static"
+fi
+CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
 
 HOST=""
 PREFIX=$OUT/fdk-aac-$ARCH
@@ -59,9 +70,9 @@ echo "sysroot:$FF_SYSROOT"
 echo "prefix:$PREFIX"
 echo "host:$HOST"
 
-CFLAGS=" --sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
+CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
 CPPFLAGS="${CFLAGS}"
-LDFLAGS="${LDFLAGS} -L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
+LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
 
 # fdk-aac的配置与ffmpeg不同，ffmpeg是通过--extra-cflags等参数来配置编译器参数的，这里是通过CFLAGS环境变量配置的
 export CFLAGS

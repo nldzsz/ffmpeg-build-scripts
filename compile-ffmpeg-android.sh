@@ -33,8 +33,8 @@ export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20
 export FF_CC_VER=4.9
 # 开启编译动态库，默认开启
 export FF_COMPILE_SHARED=TRUE
-# 开启编译静态库,默认关闭
-export FF_COMPILE_STATIC=TRUE
+# 开启编译静态库,默认关闭,动态库和静态库同时只能开启一个，不然导入android使用时会出错
+export FF_COMPILE_STATIC=FALSE
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
 export lIBS=(x264 fdk-aac mp3lame)

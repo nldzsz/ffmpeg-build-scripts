@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONFIGURE_FLAGS="--enable-pic --disable-cli --enable-strip --disable-debug"
+CONFIGURE_FLAGS="--enable-pic --disable-cli --enable-strip "
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
@@ -66,7 +66,6 @@ echo "host:$HOST"
 unset CFLAGS
 unset CPPFLAGS
 unset LDFLAGS
-unset PKG_CONFIG_PATH
 
 # 效果和./configre .... 一样
 ./configure \

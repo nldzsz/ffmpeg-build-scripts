@@ -16,7 +16,8 @@
 # limitations under the License.
 #
 
-CONFIGURE_FLAGS="--disable-frontend "
+# with-pic=PIC 表示编译独立的代码，最好开启此选项，否则引入android时提示出错
+CONFIGURE_FLAGS="--disable-frontend --with-pic=PIC"
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
@@ -69,9 +70,9 @@ echo "sysroot:$FF_SYSROOT"
 echo "cross-prefix:$CROSS_PREFIX"
 echo "prefix:$PREFIX"
 
-CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
+CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API -fPIC "
 CPPFLAGS="${CFLAGS}"
-LDFLAGS="${LDFLAGS} -L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
+LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
 
 # mp3lame的配置与ffmpeg不同，ffmpeg是通过--extra-cflags等参数来配置编译器参数的，这里是通过CFLAGS环境变量配置的
 export CFLAGS

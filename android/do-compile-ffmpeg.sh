@@ -130,6 +130,17 @@ export COMMON_FF_CFG_FLAGS=
 # 开启Android的MediaCodec GPU编码；必须要开启--enable-jni才能将mediacodec编译进去
 export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-jni"
 export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"
+# 默认为编译动态库
+shared_enable="--enable-shared"
+static_enable="--disable-static"
+# 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
+if [ $FF_COMPILE_SHARED != "TRUE" ];then
+shared_enable="--disable-shared"
+fi
+if [ $FF_COMPILE_STATIC == "TRUE" ];then
+static_enable="--enable-static"
+fi
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $shared_enable $static_enable"
 
 #导入ffmpeg的外部库
 EXT_ALL_LIBS=
@@ -249,7 +260,25 @@ mkdir -p $FF_PREFIX/include/libffmpeg
 #cp -f config.h $FF_PREFIX/include/libffmpeg/config.h
 cd -
 
-#--------- 将前面生成的静态库合并成一个动态库 这里会将外部.a库也合并进来-----------
+# 执行拷贝
+#${#array[@]}获取数组长度用于循环
+for(( i=0;i<${#lIBS[@]};i++))
+do
+    lib=${lIBS[i]};
+    lib_name=$lib-$FF_ARCH
+    lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
+    ext=".so"
+    if [ $FF_COMPILE_STATIC == "TRUE" ];then
+        ext=".a"
+    fi
+    
+    if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
+        cp $lib_lib_dir/lib$lib$ext $FF_PREFIX/lib/lib$lib$ext
+    fi
+done
+
+#--------- 将前面生成的静态库合并成一个动态库 这里会将外部.a库也合并进来;只用于静态编译的ffmpeg-----------
+# todo:下面的连接器ndk20执行会出错，ndk17则没问题(原因未知)
 #$LD -rpath-link=$FF_SYSROOT/usr/lib \
 #    -L$FF_SYSROOT/usr/lib \
 #    -soname libxrzffmpeg.so -shared -nostdlib -Bsymbolic --whole-archive --no-undefined \
