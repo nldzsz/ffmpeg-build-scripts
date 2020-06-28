@@ -17,13 +17,13 @@ if [[ ! `which curl` ]]; then
     echo "curl not found begin install....."
     if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台;自带
-        echo "curl has install....."
+        brew install wget
     elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台
-        sudo apt install curl || exit 1
+        sudo apt install wget || exit 1
     else
         # windows平台
-        sudo apt-cyg install curl || exit 1
+        sudo apt-cyg install wget || exit 1
     fi
 fi
 echo -e "check curl ok......"
@@ -37,7 +37,7 @@ if [[ ! `which yasm` ]]; then
         brew install yasm || exit 1
     else
         # Linux平台和windows平台
-        curl -O http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz || exit 1
+        wget http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz || exit 1
         tar zxvf yasm-1.3.0.tar.gz || exit 1
         rm yasm-1.3.0.tar.gz
         cd yasm-1.3.0

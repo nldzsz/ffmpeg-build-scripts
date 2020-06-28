@@ -14,7 +14,7 @@ elif [ ! -d $LOCAL_WORKSPACE/$TARGET_VERSION ]; then
     echo "url $REMOTE_REPO"
     cd $LOCAL_WORKSPACE
     #设置超时时间
-    curl -O $REMOTE_REPO || exit 1
+    wget $REMOTE_REPO || exit 1
     tar zxf $TARGET_VERSION.tar.gz
     rm  $TARGET_VERSION.tar.gz
     cd -
