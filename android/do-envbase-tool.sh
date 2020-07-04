@@ -3,38 +3,13 @@
 
 FF_ARCH=$1
 
-# 开始编译 pwd代表的执行该脚本脚本的所在目录(不一定是该脚本所在目录)
-FF_BUILD_ROOT=`pwd`/android
-
-#----------
 UNAME_S=$(uname -s)
 UNAME_SM=$(uname -sm)
-echo "-------do-envbase-tools.sh-------"
-echo "build on $UNAME_SM"
-echo "NDK_PATH=$NDK_PATH"
-echo "FF_BUILD_ROOT=$FF_BUILD_ROOT"
-
-export IJK_NDK_REL=$(grep -o '^r[0-9]*.*' $NDK_PATH/RELEASE.TXT 2>/dev/null | sed 's/[[:space:]]*//g' | cut -b2-)
+IJK_NDK_REL=$(grep -o '^r[0-9]*.*' $NDK_PATH/RELEASE.TXT 2>/dev/null | sed 's/[[:space:]]*//g' | cut -b2-)
 case "$IJK_NDK_REL" in
     10e*)
-        # we don't use 4.4.3 because it doesn't handle threads correctly.
-        if test -d ${NDK_PATH}/toolchains/arm-linux-androideabi-4.8
-        # if gcc 4.8 is present, it's there for all the archs (x86, mips, arm)
-        then
-            echo "NDKr$IJK_NDK_REL detected"
-
-            case "$UNAME_S" in
-                Darwin)
-                    export FF_MAKE_TOOLCHAIN_FLAGS="$FF_MAKE_TOOLCHAIN_FLAGS --system=darwin-x86_64"
-                ;;
-                CYGWIN_NT-*)
-                    export FF_MAKE_TOOLCHAIN_FLAGS="$FF_MAKE_TOOLCHAIN_FLAGS --system=windows-x86_64"
-                ;;
-            esac
-        else
-            echo "You need the NDKr10e or later"
-            exit 1
-        fi
+        echo "You need the NDKr10e or later"
+        exit 1
     ;;
     *)
         IJK_NDK_REL=$(grep -o '^Pkg\.Revision.*=[0-9]*.*' $NDK_PATH/source.properties 2>/dev/null | sed 's/[[:space:]]*//g' | cut -d "=" -f 2)
@@ -57,6 +32,8 @@ case "$IJK_NDK_REL" in
     ;;
 esac
 
+# 开始编译 pwd代表的执行该脚本脚本的所在目录(不一定是该脚本所在目录)
+export WORK_PATH=`pwd`
 case "$UNAME_S" in
     Darwin)
         export FF_MAKE_FLAGS=-j`sysctl -n machdep.cpu.thread_count`
@@ -64,62 +41,148 @@ case "$UNAME_S" in
     CYGWIN_NT-*)
         IJK_WIN_TEMP="$(cygpath -am /tmp)"
         export TEMPDIR=$IJK_WIN_TEMP/
-
         echo "Cygwin temp prefix=$IJK_WIN_TEMP/"
+		export WORK_PATH="$(cygpath -am `pwd`)"
     ;;
 esac
 
+FF_BUILD_ROOT=$WORK_PATH/android
+echo ""
+echo "-------do-envbase-tools.sh-------"
+echo "build on $UNAME_SM"
+echo "NDK_PATH=$NDK_PATH"
+echo "WORK_PATH=$WORK_PATH"
+echo ""
+
+
 FF_CROSS_PREFIX=
+FF_CC_CPP_PREFIX=
+FF_ARCH_1=arm
+FF_CC=gcc
+FF_CPP=g++
+FF_SYSROOT=
 if [ "$FF_ARCH" = "x86_64" ]; then
+	FF_ARCH_1=x86_64
     FF_CROSS_PREFIX=x86_64-linux-android
+	FF_CC_CPP_PREFIX=x86_64-linux-android$FF_ANDROID_API
 elif [ "$FF_ARCH" = "armv7a" ]; then
+	FF_ARCH_1=arm
     FF_CROSS_PREFIX=arm-linux-androideabi
+	FF_CC_CPP_PREFIX=armv7a-linux-androideabi$FF_ANDROID_API
 elif [ "$FF_ARCH" = "arm64" ]; then
+	FF_ARCH_1=arm64
     FF_CROSS_PREFIX=aarch64-linux-android
+	FF_CC_CPP_PREFIX=aarch64-linux-android$FF_ANDROID_API
 else
+	FF_ARCH_1=arm
     FF_CROSS_PREFIX=arm-linux-androideabi
 fi
 
-#--------------------
-echo ""
-echo "--------------------"
-echo "[*] make NDK standalone toolchain"
-echo "--------------------"
-echo "FF_MAKE_TOOLCHAIN_FLAGS=$FF_MAKE_TOOLCHAIN_FLAGS"
-echo "FF_MAKE_FLAGS=$FF_MAKE_FLAGS"
-echo "FF_CC_VER=$FF_CC_VER"
-echo "FF_ANDROID_API=$FF_ANDROID_API"
-echo "--------------------"
-echo ""
-
-# ==== 创建独立工具链 参考https://developer.android.com/ndk/guides/standalone_toolchain
 FF_TOOLCHAIN_PATH=$FF_BUILD_ROOT/forksource/toolchain-$FF_ARCH
 FF_TOOLCHAIN_TOUCH="$FF_TOOLCHAIN_PATH/touch"
 FF_SAVE_NDK_VERSION="1.0"
 if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
     FF_SAVE_NDK_VERSION=`cat "$FF_TOOLCHAIN_TOUCH"`
 fi
-
-if [  "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
-    
-    # NDK版本不一样了，则先删除以前的
-    if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
-        rm -rf $FF_TOOLCHAIN_PATH
-    fi
-    
-# 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
-    $NDK_PATH/build/tools/make-standalone-toolchain.sh \
-        --install-dir=$FF_TOOLCHAIN_PATH \
-        --platform="android-$FF_ANDROID_API" \
-        --toolchain=${FF_CROSS_PREFIX}-${FF_CC_VER}
-# 避免重复执行make-standalone-toolchain.sh指令
-    touch $FF_TOOLCHAIN_TOUCH;
-    echo "$IJK_NDK_REL"> $FF_TOOLCHAIN_TOUCH
+echo "local $FF_SAVE_NDK_VERSION cur $IJK_NDK_REL $UNAME_S"
+if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ];then
+	echo ""
+	echo "--------------------"
+	echo "[*] make NDK standalone toolchain"
+	echo "--------------------"
+	echo "FF_MAKE_TOOLCHAIN_FLAGS=$FF_MAKE_TOOLCHAIN_FLAGS"
+	echo "FF_MAKE_FLAGS=$FF_MAKE_FLAGS"
+	echo "FF_ANDROID_API=$FF_ANDROID_API"
+	echo "--------------------"
+	echo ""
 fi
-# ==== 创建独立工具链
 
-export FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
-export PATH=$FF_TOOLCHAIN_PATH/bin/:$PATH
+# 遇到问题：cygwin编译x264时环境变量不起作用。
+# 分析原因：对于cyg编译工具的PATH环境变量，x264的编译脚本无法识别C:这样的盘符(它用:/cygdrive/c来表示C盘)
+# 解决方案：直接指定AR，CC，CPP的绝对路径
+# 创建独立工具链 参考https://developer.android.com/ndk/guides/standalone_toolchain
+#export PATH=$FF_TOOLCHAIN_PATH/bin/:$PATH
+if [[ "$UNAME_S" == CYGWIN_NT-* ]]; then
+	
+	if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
+		
+		# NDK版本不一样了，则先删除以前的
+		if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
+			rm -rf $FF_TOOLCHAIN_PATH
+		fi
+		
+		
+		#遇到问题：cyg调用dnk17以下版本的make-standalone-toolchain.sh脚本会出错，而且ndk21的此脚本也是各种问题
+		#分析原因：可能此脚本不同版本的兼容性未做好
+		#解决方案：cyg调用bat脚本来安装独立工具链则很好的解决了兼容性问题
+		#windows的cyg编译则调用bat脚本来安装独立工具链
+		echo "cwgwin windows bat install maketool..."
+		$WORK_PATH/maketool_install.bat "$WIN_PYTHON_PATH" "$NDK_PATH" $FF_ARCH_1 $FF_ANDROID_API "$FF_TOOLCHAIN_PATH"
+		
+		# 避免重复执行make-standalone-toolchain.sh指令
+		touch $FF_TOOLCHAIN_TOUCH;
+		echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
+	fi
+	
+	# 定义cyg的C编译器和CPP编译器
+	FF_CC=clang.cmd
+	FF_CPP=clang++.cmd
+
+	FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
+	FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+	FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
+	
+else
+	# 其他系统 mac和linux
+	if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
+		
+		# NDK版本不一样了，则先删除以前的
+		if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
+			rm -rf $FF_TOOLCHAIN_PATH
+		fi
+		
+		# 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
+		$NDK_PATH/build/tools/make-standalone-toolchain.sh \
+			--install-dir=$FF_TOOLCHAIN_PATH \
+			--platform="android-$FF_ANDROID_API" \
+			--toolchain=${FF_CROSS_PREFIX}-4.9
+		
+		# 避免重复执行make-standalone-toolchain.sh指令
+		touch $FF_TOOLCHAIN_TOUCH;
+		echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
+	fi
+	
+	if [[ "$IJK_NDK_REL" < "19" ]]; then
+		# 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
+		$NDK_PATH/build/tools/make-standalone-toolchain.sh \
+			--install-dir=$FF_TOOLCHAIN_PATH \
+			--platform="android-$FF_ANDROID_API" \
+			--toolchain=${FF_CROSS_PREFIX}-4.9
+		
+		# 避免重复执行make-standalone-toolchain.sh指令
+		touch $FF_TOOLCHAIN_TOUCH;
+		echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
+		
+		FF_CC=clang.cmd
+		FF_CPP=clang++.cmd
+		
+		FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
+		FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+		FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
+	else	
+		# ndk 19以后则直接使用ndk原来的目录即可
+		FF_SYSROOT=$NDK_PATH/sysroot
+		FF_CC=clang
+		FF_CPP=clang++
+		FF_SYSROOT=$NDK_PATH/sysroot
+		FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/windows-x86_64/bin/${FF_CROSS_PREFIX}
+		FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/windows-x86_64/bin/${FF_CC_CPP_PREFIX}
+	fi
+
+fi
+
+export FF_SYSROOT
+export FF_CROSS_PREFIX
 # 编译缓存，可以加快编译
 #export CC="ccache ${FF_CROSS_PREFIX}-gcc"
 # fixbug:ndk20版本之后，预编译器cpp已经内置到CC中了，所以如果这里再指定会出现找不到cpp的错误
@@ -129,8 +192,8 @@ export AR=${FF_CROSS_PREFIX}-ar
 # -DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
 #export AS=${FF_CROSS_PREFIX}-as
 export NM=${FF_CROSS_PREFIX}-nm
-export CC=${FF_CROSS_PREFIX}-gcc
-export CXX=${FF_CROSS_PREFIX}-g++
+export CC=${FF_CC_CPP_PREFIX}-$FF_CC
+export CXX=${FF_CC_CPP_PREFIX}-$FF_CPP
 export LD=${FF_CROSS_PREFIX}-ld
 export RANLIB=${FF_CROSS_PREFIX}-ranlib
 export STRIP=${FF_CROSS_PREFIX}-strip

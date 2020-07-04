@@ -19,8 +19,7 @@
 # https://github.com/yixia/FFmpeg-Android
 # http://git.videolan.org/?p=vlc-ports/android.git;a=summary
 
-FF_BUILD_ROOT=`pwd`/android
-echo "FF_BUILD_ROOT=$FF_BUILD_ROOT"
+FF_BUILD_ROOT=$WORK_PATH/android
 
 #--------------------
 # 目标平台 armv7a arm64(armv8) x86....
@@ -35,9 +34,11 @@ if [ -z "$FF_ARCH" ]; then
     exit 1
 fi
 
+# 创建独立工具链
+# 通过此种方式执行sh 文件中的export变量才有效。如果换成sh ./do-make-standalone-tool.sh $ARCH 则不行
+. ./android/do-envbase-tool.sh $FF_ARCH
+
 # 对于每一个库，他们的./configure 他们的配置参数以及关于交叉编译的配置参数可能不一样，具体参考它的./configure文件
-# 用于./configure 的--cross_prefix 参数
-FF_CROSS_PREFIX=
 # 用于./configure 的--arch 参数
 FF_CROSS_ARCH=
 # 用于./configure 的参数
@@ -56,7 +57,6 @@ FF_BUILD_NAME=
 # ffmpeg增加了neon以及thumb的支持，通过--enable-neon这些选项开启这些支持，其它库不一定有neon的支持，
 if [ "$FF_ARCH" = "armv7a" ]; then
     FF_BUILD_NAME=ffmpeg-armv7a
-    FF_CROSS_PREFIX=arm-linux-androideabi
     FF_CROSS_ARCH="--arch=arm --cpu=cortex-a8"
     # 下面两个是ffmpeg 库针armv7a架构对特有的，其它库不一定有下面这两个选项
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-neon"
@@ -67,14 +67,12 @@ if [ "$FF_ARCH" = "armv7a" ]; then
     FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS -Wl,--fix-cortex-a8"
 elif [ "$FF_ARCH" = "armv5" ]; then
     FF_BUILD_NAME=ffmpeg-armv5
-    FF_CROSS_PREFIX=arm-linux-androideabi
     FF_CROSS_ARCH="--arch=arm"
     FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -march=armv5te -mtune=arm9tdmi -msoft-float"
     FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS"
 
 elif [ "$FF_ARCH" = "x86_64" ]; then
     FF_BUILD_NAME=ffmpeg-x86_64
-    FF_CROSS_PREFIX=x86_64-linux-android
     FF_CROSS_ARCH="--arch=x86_64"
     FF_CFG_FLAGS="$FF_CFG_FLAGS  --enable-yasm"
     FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS"
@@ -82,7 +80,6 @@ elif [ "$FF_ARCH" = "x86_64" ]; then
 
 elif [ "$FF_ARCH" = "arm64" ]; then
     FF_BUILD_NAME=ffmpeg-arm64
-    FF_CROSS_PREFIX=aarch64-linux-android
     FF_CROSS_ARCH="--arch=aarch64"
     # arm64 默认就开启了neon，所以不需要像armv7a那样手动开启
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-yasm"
@@ -217,10 +214,6 @@ case "$FF_BUILD_OPT" in
     ;;
 esac
 
-# 创建独立工具链
-# 通过此种方式执行sh 文件中的export变量才有效。如果换成sh ./do-make-standalone-tool.sh $ARCH 则不行
-. ./android/do-envbase-tool.sh $FF_ARCH
-
 #--------------------
 echo ""
 echo "--------------------"
@@ -244,7 +237,9 @@ cd $FF_SOURCE
 # which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
 ./configure $FF_CFG_FLAGS \
     --extra-cflags="$FF_EXTRA_CFLAGS" \
-    --extra-ldflags="$FF_EXTRA_LDFLAGS"
+    --extra-ldflags="$FF_EXTRA_LDFLAGS" \
+	--cc=$CC	\
+	--ln_s="cp -rf" 
 make clean
 
 #------- 编译和连接 -------------

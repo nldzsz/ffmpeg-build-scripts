@@ -11,40 +11,43 @@ if [[ $uname = "Darwin" ]]  && [[ ! `which brew` ]]; then
     echo -e "check Homebrew ok......"
 fi
 
-# curl用于下载资源的命令包
-echo "check curl env......"
-if [[ ! `which curl` ]]; then
-    echo "curl not found begin install....."
+# wget用于下载资源的命令包
+echo "check wget env......"
+if [[ ! `which wget` ]]; then
+    echo "wget not found begin install....."
     if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台;自带
-        echo "curl has install....."
+        echo "wget has install....."
     elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台
-        sudo apt install curl || exit 1
+        sudo apt install wget || exit 1
     else
         # windows平台
-        sudo apt-cyg install curl || exit 1
+        apt-cyg install wget || exit 1
     fi
 fi
-echo -e "check curl ok......"
+echo -e "check wget ok......"
 
 # yasm是Mac平台和PC平台的汇编器，用于windows，linux，osx系统的ffmpeg汇编部分编译；
 echo "check yasm env......"
 if [[ ! `which yasm` ]]; then
 	echo "yasm not found begin install....."
-    if [[ "$(uname)" == "Darwin" ]];then
+	if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台
         brew install yasm || exit 1
-    else
+    elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台和windows平台
-        curl -O http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz || exit 1
+        wget http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz || exit 1
         tar zxvf yasm-1.3.0.tar.gz || exit 1
         rm yasm-1.3.0.tar.gz
         cd yasm-1.3.0
         ./configure || exit 1
-        sudo make && sudo make install || exit 1
+		sudo make && sudo make install || exit 1
         cd -
         rm -rf yasm-1.3.0
+    else
+        # windows平台
+        apt-cyg install yasm || exit 1
     fi
 fi
 echo -e "check yasm ok......"
@@ -66,6 +69,16 @@ if [[ $uname = "Darwin" ]]  && [[ ! `which gas-preprocessor.pl` ]]; then
     chmod +x /usr/local/bin/gas-preprocessor.pl
 	rm -rf gas-preprocessor
     echo -e "check gas-preprocessor.pl ok......"
+fi
+
+# 遇到问题：cygwin平台编译fdk-aac时提示" 'aclocal-1.15' is missing on your system."
+# 分析原因：未安装automake
+# 解决方案：安装automake
+if [[ "$uname" = CYGWIN_NT-* ]]  && [[ ! `which automake` ]]; then
+    echo "check automake env......"
+    echo "automake not found begin install....."
+    apt-cyg install automake || exit 1
+    echo -e "check automake ok......"
 fi
 
 echo -e "check build env over ======="
