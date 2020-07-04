@@ -17,7 +17,7 @@ if [[ ! `which wget` ]]; then
     echo "wget not found begin install....."
     if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台;自带
-        echo "wget has install....."
+        brew install wget
     elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台
         sudo apt install wget || exit 1
