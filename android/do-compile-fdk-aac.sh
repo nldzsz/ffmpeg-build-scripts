@@ -71,8 +71,13 @@ echo "prefix:$PREFIX"
 echo "host:$HOST"
 
 CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
-CPPFLAGS="${CFLAGS}"
 LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
+if [ ! -z $FF_SYSROOT ];then
+CFLAGS="-D__ANDROID_API__=$FF_ANDROID_API"
+LDFLAGS=""
+fi
+CPPFLAGS="${CFLAGS}"
+
 
 # fdk-aac的配置与ffmpeg不同，ffmpeg是通过--extra-cflags等参数来配置编译器参数的，这里是通过CFLAGS环境变量配置的
 export CFLAGS

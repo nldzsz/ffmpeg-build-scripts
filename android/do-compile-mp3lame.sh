@@ -71,8 +71,12 @@ echo "cross-prefix:$CROSS_PREFIX"
 echo "prefix:$PREFIX"
 
 CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API -fPIC "
-CPPFLAGS="${CFLAGS}"
 LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
+if [ ! -z $FF_SYSROOT ];then
+CFLAGS="-D__ANDROID_API__=$FF_ANDROID_API -fPIC "
+LDFLAGS=""
+fi
+CPPFLAGS="${CFLAGS}"
 
 # mp3lame的配置与ffmpeg不同，ffmpeg是通过--extra-cflags等参数来配置编译器参数的，这里是通过CFLAGS环境变量配置的
 export CFLAGS

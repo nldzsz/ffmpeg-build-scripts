@@ -4,8 +4,6 @@ CONFIGURE_FLAGS="--enable-pic --disable-cli --enable-strip "
 
 # 源码目录;与编译脚本同级目录，编译的中间产物.o,.d也会在这里
 SOURCE=
-# 编译最终的输出目录；必须为绝对路径，否则生成的库不会到这里去
-OUT=$WORK_PATH/"android/build"
 # 接受参数 作为编译平台
 ARCH=$1
 # 编译的API要求
@@ -52,7 +50,7 @@ fi
 CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
 
 HOST=""
-PREFIX=$OUT/x264-$ARCH
+PREFIX=$WORK_PATH/android/build/x264-$ARCH
 if [ "$ARCH" = "x86_64" ]; then
     HOST="x86_64-linux"
 elif [ "$ARCH" = "armv7a" ]; then
@@ -77,13 +75,16 @@ unset CFLAGS
 unset CPPFLAGS
 unset LDFLAGS
 
+if [ ! -z $FF_SYSROOT ];then
+CONFIGURE_FLAGS="$CONFIGURE_FLAGS --sysroot=$FF_SYSROOT"
+fi
 # 效果和./configre .... 一样
 ./configure \
   ${CONFIGURE_FLAGS} \
   --prefix=$PREFIX \
   --host=$HOST \
   --cross-prefix=$FF_CROSS_PREFIX- \
-  --extra-cflags="-D__ANDROID_API__=$FF_ANDROID_API" \
-  --sysroot=$FF_SYSROOT || exit 1
-make $FF_MAKE_FLAGS install
+  --extra-cflags="-D__ANDROID_API__=$FF_ANDROID_API" || exit 1
+  
+make && make install
 cd -

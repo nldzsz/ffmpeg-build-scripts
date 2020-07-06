@@ -60,7 +60,8 @@ FF_CC_CPP_PREFIX=
 FF_ARCH_1=arm
 FF_CC=gcc
 FF_CPP=g++
-FF_SYSROOT=
+FF_SYSROOT=""
+FF_HOST_OS=
 if [ "$FF_ARCH" = "x86_64" ]; then
 	FF_ARCH_1=x86_64
     FF_CROSS_PREFIX=x86_64-linux-android
@@ -131,52 +132,50 @@ if [[ "$UNAME_S" == CYGWIN_NT-* ]]; then
 	FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
 	FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
 	FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
-	
+	FF_HOST_OS=windows-x86_64
 else
 	# 其他系统 mac和linux
 	if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
 		
+        
 		# NDK版本不一样了，则先删除以前的
 		if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
 			rm -rf $FF_TOOLCHAIN_PATH
 		fi
 		
-		# 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
-		$NDK_PATH/build/tools/make-standalone-toolchain.sh \
-			--install-dir=$FF_TOOLCHAIN_PATH \
-			--platform="android-$FF_ANDROID_API" \
-			--toolchain=${FF_CROSS_PREFIX}-4.9
-		
-		# 避免重复执行make-standalone-toolchain.sh指令
-		touch $FF_TOOLCHAIN_TOUCH;
-		echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
+        # ndk19以前才需要
+        if [[ "$IJK_NDK_REL" < "19" ]]; then
+            # 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
+            $NDK_PATH/build/tools/make-standalone-toolchain.sh \
+                --install-dir=$FF_TOOLCHAIN_PATH \
+                --platform="android-$FF_ANDROID_API" \
+                --arch=$FF_ARCH_1   \
+                --toolchain=${FF_CROSS_PREFIX}-4.9
+                
+            # 避免重复执行make-standalone-toolchain.sh指令
+            touch $FF_TOOLCHAIN_TOUCH;
+            echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
+        fi
+        
 	fi
 	
+    if [ "$UNAME_S" == "Linux" ];then
+        FF_HOST_OS=linux-x86_64
+    else
+        FF_HOST_OS=darwin-x86_64
+    fi
+    
+    FF_CC=clang
+    FF_CPP=clang++
 	if [[ "$IJK_NDK_REL" < "19" ]]; then
-		# 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
-		$NDK_PATH/build/tools/make-standalone-toolchain.sh \
-			--install-dir=$FF_TOOLCHAIN_PATH \
-			--platform="android-$FF_ANDROID_API" \
-			--toolchain=${FF_CROSS_PREFIX}-4.9
-		
-		# 避免重复执行make-standalone-toolchain.sh指令
-		touch $FF_TOOLCHAIN_TOUCH;
-		echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
-		
-		FF_CC=clang.cmd
-		FF_CPP=clang++.cmd
-		
 		FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
 		FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
 		FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
 	else	
-		# ndk 19以后则直接使用ndk原来的目录即可
-		FF_SYSROOT=$NDK_PATH/sysroot
-		FF_CC=clang
-		FF_CPP=clang++
-		FF_SYSROOT=$NDK_PATH/sysroot
-		FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/windows-x86_64/bin/${FF_CROSS_PREFIX}
-		FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/windows-x86_64/bin/${FF_CC_CPP_PREFIX}
+		# ndk 19以后则直接使用ndk原来的目录即可;而且FF_SYSROOT不需要用--sysroot来指定了，否则编译会出错
+		FF_SYSROOT=""
+		FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CROSS_PREFIX}
+		FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CC_CPP_PREFIX}
 	fi
 
 fi
