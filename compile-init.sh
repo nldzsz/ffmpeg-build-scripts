@@ -49,12 +49,6 @@ set -e
 # 公用工具脚本路径
 TOOLS=tools
 
-# 各个平台的cpu架构
-# FF_ALL_ARCHS="armv7 armv7s arm64 i386 x86_64"
-FF_ALL_ARCHS_ANDROID="armv7a arm64"
-FF_ALL_ARCHS_IOS="arm64 x86_64"
-FF_ALL_ARCHS_MAC="x86_64"
-
 # $1 表示执行shell脚本时输入的参数 比如./init-ios.sh arm64 x86_64 $1的值为arm64;$1的值为x86_64
 # $0 当前脚本的文件名
 # $# 传递给脚本或函数的参数个数。
@@ -226,6 +220,22 @@ case "$FF_TARGET" in
             pull_common
         fi
         pull_fork_all $FF_ALL_ARCHS_MAC
+    ;;
+	windows)
+        FORK_SOURCE=$FF_TARGET/forksource
+        # 不拉取最新代码
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_WINDOW_ARCH
+    ;;
+	linux)
+        FORK_SOURCE=$FF_TARGET/forksource
+        # 不拉取最新代码
+        if [ $OFF != "offline" ];then
+            pull_common
+        fi
+        pull_fork_all $FF_ALL_ARCHS_LINUX
     ;;
     all|*)
         FORK_SOURCE=ios/forksource

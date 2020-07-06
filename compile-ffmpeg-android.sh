@@ -21,8 +21,8 @@
 set -e
 
 # 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
-# FF_ALL_ARCHS="armv5 armv7a arm64 i386 x86_64"
-FF_ALL_ARCHS="armv7a arm64"
+# FF_ALL_ARCHS_ANDROID="armv5 armv7a arm64 i386 x86_64"
+export FF_ALL_ARCHS_ANDROID="armv7a arm64"
 # 编译的API级别 (最小5.0以上系统)
 export FF_ANDROID_API=21
 # 根据实际情况填写ndk路径
@@ -90,7 +90,7 @@ elif [ "$FF_TARGET" = "all" ]; then
     # 清除之前编译的
     #rm -rf android/build
 	
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_ANDROID
     do
         # 先编译外部库
         config_external_lib $ARCH
@@ -106,7 +106,7 @@ elif [ "$FF_TARGET" == "pull" ]; then
 elif [ "$FF_TARGET" = "clean" ]; then
 
     echo "====== begin clean ======"
-#    for ARCH in $FF_ALL_ARCHS
+#    for ARCH in $FF_ALL_ARCHS_ANDROID
 #    do
 #        echo "clean ffmpeg-$ARCH"
 #        echo "=================="

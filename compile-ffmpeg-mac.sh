@@ -20,8 +20,7 @@
 set -e
 
 # 由于目前MAC设备都是电脑64位 所以这里脚本默认只支持 x86_64平台
-# FF_ALL_ARCHS="i386 x86_64"
-FF_ALL_ARCHS="x86_64"
+export FF_ALL_ARCHS_MAC="x86_64"
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加3个库
 export lIBS=(x264 fdk-aac mp3lame)
@@ -65,7 +64,7 @@ elif [ "$FF_TARGET" == "all" ]; then
     fi
     
     rm -rf mac/build/ffmpeg-*
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_MAC
     do
         # 先编译外部库
         compile_external_lib $ARCH
@@ -77,7 +76,7 @@ elif [ "$FF_TARGET" == "all" ]; then
 elif [ "$FF_TARGET" = "clean" ]; then
 
     echo "=================="
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_MAC
     do
         echo "clean ffmpeg-$ARCH"
         echo "=================="

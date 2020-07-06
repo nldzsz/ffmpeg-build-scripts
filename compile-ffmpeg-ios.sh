@@ -20,8 +20,8 @@
 # modify for your build tool
 
 # 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
-# FF_ALL_ARCHS="armv7 armv7s arm64 i386 x86_64"
-FF_ALL_ARCHS="arm64 x86_64"
+# FF_ALL_ARCHS_IOS="armv7 armv7s arm64 i386 x86_64"
+export FF_ALL_ARCHS_IOS="arm64 x86_64"
 target_ios=10.0
 
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加三个库
@@ -39,14 +39,14 @@ echo_archs() {
     echo "===================="
     echo "[*] check xcode version"
     echo "===================="
-    echo "FF_ALL_ARCHS = $FF_ALL_ARCHS"
+    echo "FF_ALL_ARCHS_IOS = $FF_ALL_ARCHS_IOS"
 }
 
 FF_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
 do_lipo_ffmpeg () {
     LIB_FILE=$1
     LIPO_FLAGS=
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
         ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/lib/$LIB_FILE"
         if [ -f "$ARCH_LIB_FILE" ]; then
@@ -65,7 +65,7 @@ do_lipo_lib () {
     LIB=$1
     LIB_FILE=lib$LIB.a
     LIPO_FLAGS=
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
         ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/$LIB-$ARCH/lib/$LIB_FILE"
         if [ -f "$ARCH_LIB_FILE" ]; then
@@ -83,7 +83,7 @@ do_lipo_lib () {
 
 do_lipo_all () {
     mkdir -p $UNI_BUILD_ROOT/build/universal/lib
-    echo "lipo archs: $FF_ALL_ARCHS"
+    echo "lipo archs: $FF_ALL_ARCHS_IOS"
     # 将ffmpeg的各个模块生成的库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
     for FF_LIB in $FF_LIBS
     do
@@ -91,7 +91,7 @@ do_lipo_all () {
     done
 
     ANY_ARCH=
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
         ARCH_INC_DIR="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/include"
         if [ -d "$ARCH_INC_DIR" ]; then
@@ -129,7 +129,7 @@ do_lipo_all () {
 do_lipo_all_one () {
 	
    	finallipoLibs=""
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
     	mkdir -p $UNI_BUILD_ROOT/build/tmp-$ARCH/lib
     	lipoLibs=""
@@ -180,7 +180,7 @@ function compile_external_lib()
     for(( i=0;i<${#lIBS[@]};i++)) 
     do
         lib=${lIBS[i]};
-        for FF_ARCH in $FF_ALL_ARCHS 
+        for FF_ARCH in $FF_ALL_ARCHS_IOS 
         do
             FF_BUILD_NAME=$lib-$FF_ARCH
             FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_BUILD_NAME/lib
@@ -232,7 +232,7 @@ elif [ "$FF_TARGET" = "all" ]; then
     rm -rf ios/build/universal
     rm -rf ios/build/universal-*
     # 重新开始编译
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
         . ./ios/do-compile-ffmpeg.sh $ARCH
     done
@@ -245,7 +245,7 @@ elif [ "$FF_TARGET" = "check" ]; then
 elif [ "$FF_TARGET" = "clean" ]; then
 
     echo "=================="
-    for ARCH in $FF_ALL_ARCHS
+    for ARCH in $FF_ALL_ARCHS_IOS
     do
         echo "clean ffmpeg-$ARCH"
         echo "=================="
