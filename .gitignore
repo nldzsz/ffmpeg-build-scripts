@@ -14,7 +14,8 @@ DerivedData/
 extra/
 */ios/*arm64/
 */ios/*x86_64/
-windows/
+*windows/build/
+*windows/forksource/
 
 ## Various settings
 *.pbxuser
