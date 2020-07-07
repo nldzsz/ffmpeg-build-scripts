@@ -29,9 +29,10 @@ export FF_ANDROID_API=21
 # 否则编译fdk-aac时会出现libtool执行错误,导致编译结束)
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
 #export NDK_PATH=C:/cygwin64/home/Administrator/android-ndk-r21b
-#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20b
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
-export NDK_PATH=/home/zsz/android-ndk-r20b
+#export NDK_PATH=/home/zsz/android-ndk-r20b
 # 开启编译动态库，默认开启
 export FF_COMPILE_SHARED=TRUE
 # 开启编译静态库,默认关闭,动态库和静态库同时只能开启一个，不然导入android使用时会出错
