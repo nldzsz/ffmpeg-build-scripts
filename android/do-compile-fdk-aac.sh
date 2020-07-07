@@ -71,14 +71,27 @@ echo "prefix:$PREFIX"
 echo "host:$HOST"
 
 CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include -D__ANDROID_API__=$FF_ANDROID_API"
-CPPFLAGS="${CFLAGS}"
 LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
+if [ ! -z $FF_SYSROOT ];then
+CFLAGS="-D__ANDROID_API__=$FF_ANDROID_API"
+LDFLAGS=""
+fi
+CPPFLAGS="${CFLAGS}"
+
 
 # fdk-aac的配置与ffmpeg不同，ffmpeg是通过--extra-cflags等参数来配置编译器参数的，这里是通过CFLAGS环境变量配置的
 export CFLAGS
 export CPPFLAGS
 export LDFLAGS
 
+# 遇到问题：Linux下编译时提示"error: version mismatch.  This is Automake 1.15.1"
+# 分析原因：fdk-aac自带的生成的configure.ac和Linux系统的Automake不符合
+# 解决方案：命令autoreconf重新配置configure.ac即可
+
+UNAME_S=$(uname -s)
+if [ $UNAME_S == "Linux" ];then
+autoreconf
+fi
 # 效果和./configre .... 一样
 ./configure \
 ${CONFIGURE_FLAGS} \

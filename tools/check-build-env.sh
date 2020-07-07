@@ -60,6 +60,27 @@ if [[ $uname = "Darwin" ]]  && [[ ! `which autoconf` ]]; then
     echo -e "check autoconfl ok......"
 fi
 
+if [[ $uname = "Linux" ]] && [[ ! `which autoconf` ]]; then
+	echo "check autoconf env......"
+    echo "autoconf not found begin install....."
+	sudo apt-get install autoconf
+	#result=$(echo `autoconf --version` | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/' )
+	#if [[ "$result" < "1.16.1" ]];then
+	#	sudo apt-get --purge remove automake
+	#	wget http://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.gz
+	#	tar zxvf automake-1.16.1.tar.gz || exit 1
+    #   rm automake-1.16.1.tar.gz
+    #   cd automake-1.16.1
+    #    ./configure || exit 1
+	#	sudo make && sudo make install || exit 1
+    #   cd -
+    #    rm -rf automake-1.16.1
+	#fi
+	
+    echo -e "check autoconf ok......"
+fi
+
+
 if [[ $uname = "Darwin" ]]  && [[ ! `which gas-preprocessor.pl` ]]; then
     # gas-preprocessor.pl是IOS平台用的汇编器，安卓则包含在ndk目录中，不需要单独再指定
     echo "check gas-preprocessor.pl env......"
