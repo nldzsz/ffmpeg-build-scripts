@@ -30,7 +30,8 @@ export FF_ANDROID_API=21
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
 #export NDK_PATH=C:/cygwin64/home/Administrator/android-ndk-r21b
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
+export NDK_PATH=/home/zsz/android-ndk-r20b
 # 开启编译动态库，默认开启
 export FF_COMPILE_SHARED=TRUE
 # 开启编译静态库,默认关闭,动态库和静态库同时只能开启一个，不然导入android使用时会出错
@@ -39,7 +40,7 @@ export FF_COMPILE_STATIC=FALSE
 export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Python38-32/python.exe
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
 export lIBS=(x264 fdk-aac mp3lame)
-export LIBFLAGS=(TRUE FALSE TRUE)
+export LIBFLAGS=(TRUE TRUE TRUE)
 
 #----------
 UNI_BUILD_ROOT=$WORK_PATH

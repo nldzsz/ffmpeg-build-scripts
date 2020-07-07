@@ -84,6 +84,14 @@ export CFLAGS
 export CPPFLAGS
 export LDFLAGS
 
+# 遇到问题：Linux下编译时提示"error: version mismatch.  This is Automake 1.15.1"
+# 分析原因：fdk-aac自带的生成的configure.ac和Linux系统的Automake不符合
+# 解决方案：命令autoreconf重新配置configure.ac即可
+
+UNAME_S=$(uname -s)
+if [ $UNAME_S == "Linux" ];then
+autoreconf
+fi
 # 效果和./configre .... 一样
 ./configure \
 ${CONFIGURE_FLAGS} \

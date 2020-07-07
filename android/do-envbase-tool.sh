@@ -143,8 +143,8 @@ else
 			rm -rf $FF_TOOLCHAIN_PATH
 		fi
 		
-        # ndk19以前才需要
-        if [[ "$IJK_NDK_REL" < "19" ]]; then
+        # ndk19以前才需要，但是ndk20在ubunto上编译mp3lame时报错，21没问题，所以21以下统一用此方法，21及以上才不用安装独立工具链
+        if [[ "$IJK_NDK_REL" < "21" ]]; then
             # 该脚本将ndk目录下的编译工具复制到指定的位置，后面./configure配置的时候指定的路径就可以写这里指定的位置了
             $NDK_PATH/build/tools/make-standalone-toolchain.sh \
                 --install-dir=$FF_TOOLCHAIN_PATH \
@@ -167,7 +167,7 @@ else
     
     FF_CC=clang
     FF_CPP=clang++
-	if [[ "$IJK_NDK_REL" < "19" ]]; then
+	if [[ "$IJK_NDK_REL" < "21" ]]; then
 		FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
 		FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
 		FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
