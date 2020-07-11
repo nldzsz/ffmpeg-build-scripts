@@ -41,14 +41,14 @@ SOURCE="android/forksource/mp3lame-$ARCH"
 cd $SOURCE
 
 # 默认为编译动态库
-shared_enable="--enable-shared"
-static_enable="--disable-static"
+shared_enable="--enable-shared=no"
+static_enable="--enable-static=no"
 # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
-if [ $FF_COMPILE_SHARED != "TRUE" ];then
-shared_enable="--disable-shared"
+if [ $FF_COMPILE_SHARED == "TRUE" ];then
+shared_enable="--enable-shared=yes"
 fi
 if [ $FF_COMPILE_STATIC == "TRUE" ];then
-static_enable="--enable-static"
+static_enable="--enable-static=yes"
 fi
 CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
 
@@ -83,6 +83,10 @@ export CFLAGS
 export CPPFLAGS
 export LDFLAGS
 export PKG_CONFIG_PATH=${TOOLCHAINS}/lib/pkgconfig
+
+# 遇到问题：当编译过一次后改变编译参数不生效(先编译动态库，接着想添加静态库的编译，依然是编译的静态库)
+# 解决方案：利用make clean刷新编译参数
+make clean
 
 # 效果和./configre .... 一样
 ./configure \

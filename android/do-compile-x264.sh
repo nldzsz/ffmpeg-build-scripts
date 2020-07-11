@@ -22,8 +22,8 @@ SOURCE="android/forksource/x264-$ARCH"
 cd $SOURCE
 
 # 默认为编译动态库
-shared_enable="--enable-shared"
-static_enable="--disable-static"
+shared_enable=""
+static_enable=""
 # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
 if [ $FF_COMPILE_SHARED == "TRUE" ];then
 UNAME_S=$(uname -s)
@@ -41,8 +41,7 @@ case "$UNAME_S" in
         sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
     ;;
 esac
-else
-shared_enable="--disable-shared"
+shared_enable="--enable-shared"
 fi
 if [ $FF_COMPILE_STATIC == "TRUE" ];then
 static_enable="--enable-static"
