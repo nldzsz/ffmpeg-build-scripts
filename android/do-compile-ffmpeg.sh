@@ -19,7 +19,7 @@
 # https://github.com/yixia/FFmpeg-Android
 # http://git.videolan.org/?p=vlc-ports/android.git;a=summary
 
-FF_BUILD_ROOT=$WORK_PATH/android
+FF_BUILD_ROOT=`pwd`/android
 
 #--------------------
 # 目标平台 armv7a arm64(armv8) x86....
@@ -54,9 +54,11 @@ FF_EXTRA_CFLAGS=
 FF_EXTRA_LDFLAGS=
 
 FF_BUILD_NAME=
+FF_BUILD_NAME2=
 # ffmpeg增加了neon以及thumb的支持，通过--enable-neon这些选项开启这些支持，其它库不一定有neon的支持，
 if [ "$FF_ARCH" = "armv7a" ]; then
     FF_BUILD_NAME=ffmpeg-armv7a
+    FF_BUILD_NAME2=armeabi-v7a
     FF_CROSS_ARCH="--arch=arm --cpu=cortex-a8"
     # 下面两个是ffmpeg 库针armv7a架构对特有的，其它库不一定有下面这两个选项
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-neon"
@@ -80,6 +82,7 @@ elif [ "$FF_ARCH" = "x86_64" ]; then
 
 elif [ "$FF_ARCH" = "arm64" ]; then
     FF_BUILD_NAME=ffmpeg-arm64
+    FF_BUILD_NAME2=arm64-v8a
     FF_CROSS_ARCH="--arch=aarch64"
     # arm64 默认就开启了neon，所以不需要像armv7a那样手动开启
     FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-yasm"
@@ -103,7 +106,12 @@ if [ ! -d $FF_SOURCE ]; then
 fi
 
 FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME
-
+FF_PREFIX_LIB=$FF_PREFIX/lib
+FF_PREFIX_PKG=$FF_PREFIX/pkg
+if [ $INTERNAL_DEBUG = "TRUE" ];then
+FF_PREFIX_LIB=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$FF_BUILD_NAME2
+FF_PREFIX_PKG=$FF_PREFIX/pkg
+fi
 mkdir -p $FF_PREFIX
 
 # 开始编译
@@ -182,6 +190,8 @@ FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
 
 # 编译库安装目录
 FF_CFG_FLAGS="$FF_CFG_FLAGS --prefix=$FF_PREFIX"
+FF_CFG_FLAGS="$FF_CFG_FLAGS --libdir=$FF_PREFIX_LIB"
+FF_CFG_FLAGS="$FF_CFG_FLAGS --pkgconfigdir=$FF_PREFIX_PKG"
 FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-pic"
 
 # -----交叉编译配置 -------
@@ -268,7 +278,7 @@ do
     fi
     
     if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
-        cp $lib_lib_dir/lib$lib$ext $FF_PREFIX/lib/lib$lib$ext
+        cp $lib_lib_dir/lib$lib$ext $FF_PREFIX_LIB/lib$lib$ext
     fi
 done
 

@@ -41,8 +41,12 @@ MP3LAME_VERSION=lame-3.100
 MP3LAME_UPSTREAM=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/$MP3LAME_VERSION.tar.gz
 MP3LAME_LOCAL_REPO=extra
 
-# 标记是否拉取过了源码
-PULL_TOUCH=extra/touch
+# 标记是否拉取过了源码及检查了环境情况
+CHECK_BUILD_ENV=extra/ztouch_env_check
+PULL_FFMPEG_TOUCH=extra/ztouch_ffmpeg
+PULL_X264_TOUCH=extra/ztouch_x264
+PULL_FDK_AAC_TOUCH=extra/ztouch_fdk_aac
+PULL_MP3LAME_TOUCH=extra/ztouch_mp3lame
 
 # 显示当前shell的所有变量(环境变量，自定义变量，与bash接口相关的变量)
 set -e
@@ -74,33 +78,50 @@ function obtain_git_branch {
 FORK_SOURCE=ios/forksource
 
 function pull_common() {
+    mkdir -p $MP3LAME_LOCAL_REPO
     
-    echo "== check build env ! =="
-    # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等;
-    # sh $TOOLS/check-build-env.sh 用. 相当于将脚本引用进来执行，如果出错，本shell也会退出。而sh 则是重新开辟一个新shell，脚本出错不影响本shell的继续执行
-    . $TOOLS/check-build-env.sh
+    if [ ! -f $CHECK_BUILD_ENV ] ;then
+        echo "== check build env ! =="
+        # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等;
+        # sh $TOOLS/check-build-env.sh 用. 相当于将脚本引用进来执行，如果出错，本shell也会退出。而sh 则是重新开辟一个新shell，脚本出错不影响本shell的继续执行
+        . $TOOLS/check-build-env.sh
+        touch $CHECK_BUILD_ENV
+    fi
 
     git --version
 
     # 拉取 x264源码
-    echo "== pull x264 base =="
-    . $TOOLS/pull-repo-base.sh $X264_UPSTREAM $X264_LOCAL_REPO
+    if [ ! -f $PULL_X264_TOUCH ] && [ ${LIBFLAGS[0]} == "TRUE" ];then
+        echo "== pull x264 base =="
+        . $TOOLS/pull-repo-base.sh $X264_UPSTREAM $X264_LOCAL_REPO
+        # 创建标记
+        echo "== create x264 touch =="
+        touch $PULL_X264_TOUCH
+    fi
 
     # 拉取 fdkaac源码
-    echo "== pull fdkaac base =="
-    . $TOOLS/curl-repo-base.sh $FDKAAC_UPSTREAM $FDKAAC_LOCAL_REPO $FDKAAC_VERSION
+    if [ ! -f $PULL_FDK_AAC_TOUCH ] && [ ${LIBFLAGS[1]} == "TRUE" ];then
+        echo "== pull fdkaac base =="
+        . $TOOLS/curl-repo-base.sh $FDKAAC_UPSTREAM $FDKAAC_LOCAL_REPO $FDKAAC_VERSION
+        echo "== create fdkaac touch =="
+        touch $PULL_FDK_AAC_TOUCH
+    fi
 
     # 拉取 mp3lame源码
-    echo "== pull mp3lame base =="
-    . $TOOLS/curl-repo-base.sh $MP3LAME_UPSTREAM $MP3LAME_LOCAL_REPO $MP3LAME_VERSION
+    if [ ! -f $PULL_MP3LAME_TOUCH ] && [ ${LIBFLAGS[2]} == "TRUE" ];then
+        echo "== pull mp3lame base =="
+        . $TOOLS/curl-repo-base.sh $MP3LAME_UPSTREAM $MP3LAME_LOCAL_REPO $MP3LAME_VERSION
+        echo "== create map3lame touch =="
+        touch $PULL_MP3LAME_TOUCH
+    fi
 
     # 拉取 ffmpeg源码
-    echo "== pull ffmpeg base =="
-    . $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
-    
-    # 创建标记
-    echo "== create touch =="
-    touch $PULL_TOUCH
+    if [ ! -f $PULL_FFMPEG_TOUCH ] ;then
+        echo "== pull ffmpeg base =="
+        . $TOOLS/pull-repo-base.sh $FFMPEG_UPSTREAM $FFMPEG_LOCAL_REPO
+        echo "== create ffmpeg touch =="
+        touch $PULL_FFMPEG_TOUCH
+    fi
 }
 
 # $1 代表平台 armv5 arm64...
@@ -109,13 +130,27 @@ function pull_common() {
 # $4 代表要切换到库的git分支名 ffmpeg 切换到4.2分支
 # $5 代表要对应到$4的git 远程分支名 ffmpeg remotes/origin/release/$FFMPEG_VERSION
 function fork_from_git() {
+    is_pull=TRUE
+    if [ $2 == "x264" ] && [ ${LIBFLAGS[0]} == "FALSE" ];then
+        is_pull=FALSE
+    elif [ $2 == "fdk-aac" ] && [ ${LIBFLAGS[1]} == "FALSE" ];then
+        is_pull=FALSE
+    elif [ $2 == "mp3lame" ] && [ ${LIBFLAGS[2]} == "FALSE" ];then
+        is_pull=FALSE
+    fi
+    if [ "$is_pull" == "FALSE" ];then
+        return
+    fi
+    
     echo "== pull $2 fork $1 =="
 # pull-repo-ref.sh 是对git clone --referrence的封装。加快clone速度，如果本地IJK_LOCAL_REPO中有，则从本地直接copy，否则从远程IJK_UPSTREAM拉取
 #    sh $TOOLS/pull-repo-ref.sh $IJK_FFMPEG_FORK ios/ffmpeg-$1 ${FFMPEG_LOCAL_REPO}
     
-    # 这里直接copy 过去
+    # 平台对应的forksource目录下存在对应的源码目录，则默认已经有代码了，不拷贝了；如果要重新拷贝，先删除存在的源码目录
     if [ -d $FORK_SOURCE/$2-$1 ]; then
-        rm -rf $FORK_SOURCE/$2-$1
+#        rm -rf $FORK_SOURCE/$2-$1
+        echo "== pull $2 fork $1 == has exist return"
+        return
     fi
     mkdir -p $FORK_SOURCE
     cp -rf $3 $FORK_SOURCE/$2-$1
@@ -134,11 +169,27 @@ function fork_from_git() {
 # $2 代表库的名称 ffmpeg x264
 # $3 代表库在本地的路径
 function fork_from_curl() {
-    echo "== pull $2 fork $1 =="
-    if [ -d $FORK_SOURCE/$2-$1 ]; then
-        rm -rf $FORK_SOURCE/$2-$1
+    is_pull=TRUE
+    if [ $2 == "x264" ] && [ ${LIBFLAGS[0]} == "FALSE" ];then
+        is_pull=FALSE
+    elif [ $2 == "fdk-aac" ] && [ ${LIBFLAGS[1]} == "FALSE" ];then
+        is_pull=FALSE
+    elif [ $2 == "mp3lame" ] && [ ${LIBFLAGS[2]} == "FALSE" ];then
+        is_pull=FALSE
     fi
-
+    if [ "$is_pull" == "FALSE" ];then
+        return
+    fi
+    
+    echo "== pull $2 fork $1 =="
+    # 平台对应的forksource目录下存在对应的源码目录，则默认已经有代码了，不拷贝了；如果要重新拷贝，先删除存在的源码目录
+    if [ -d $FORK_SOURCE/$2-$1 ]; then
+        echo "== pull $2 fork $1 == has exist return"
+#        rm -rf $FORK_SOURCE/$2-$1
+        return
+    fi
+   
+    mkdir -p $FORK_SOURCE
     # -rf 拷贝指定目录及其所有的子目录下文件
     cp -rf $3 $FORK_SOURCE/$2-$1
 }
@@ -149,7 +200,11 @@ function pull_fork_all() {
     for ARCH in $*
     do
         # fork ffmpeg
-        fork_from_git $ARCH "ffmpeg" $FFMPEG_LOCAL_REPO $FFMPEG_VERSION $FFMPEG_COMMIT
+        if [ $INTERNAL_DEBUG == "TRUE" ] ;then
+            fork_from_curl $ARCH "ffmpeg" "/Users/apple/devoloper/mine/ffmpeg/ffmpeg-source"
+        else
+            fork_from_git $ARCH "ffmpeg" $FFMPEG_LOCAL_REPO $FFMPEG_VERSION $FFMPEG_COMMIT
+        fi
 
         # fork x264
         fork_from_git $ARCH "x264" $X264_LOCAL_REPO $X264_VERSION $X264_COMMIT
@@ -175,10 +230,6 @@ function pull_fork_all() {
 # ------ case 语句 ------
 # armv7|armv7s|arm64|i386|x86_64 表示 如果$FF_TARGET的值为armv7,armv7s,arm64,i386,x86_64中任何一个都可以;注意这里不能替换为||
 # * 表示任何字符串
-OFF="on"
-if [ ! -z $2 ] && [ -f $PULL_TOUCH ] ;then
-    OFF=$2
-fi
 
 case "$FF_TARGET" in
     ffmpeg-version)
@@ -199,49 +250,38 @@ case "$FF_TARGET" in
     ;;
     ios)
         FORK_SOURCE=$FF_TARGET/forksource
-        # 不拉取最新代码
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_ALL_ARCHS_IOS
     ;;
     android)
         FORK_SOURCE=$FF_TARGET/forksource
-        # 不拉取最新代码
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_ALL_ARCHS_ANDROID
     ;;
     mac)
         FORK_SOURCE=$FF_TARGET/forksource
-        # 不拉取最新代码
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_ALL_ARCHS_MAC
     ;;
 	windows)
         FORK_SOURCE=$FF_TARGET/forksource
-        # 不拉取最新代码
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_WINDOW_ARCH
     ;;
 	linux)
         FORK_SOURCE=$FF_TARGET/forksource
-        # 不拉取最新代码
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_ALL_ARCHS_LINUX
     ;;
     all|*)
         FORK_SOURCE=ios/forksource
-        if [ $OFF != "offline" ];then
-            pull_common
-        fi
+        # 根据情况决定是否拉取最新代码
+        pull_common
         pull_fork_all $FF_ALL_ARCHS_IOS
     ;;
 esac

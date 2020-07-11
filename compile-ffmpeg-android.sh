@@ -43,8 +43,11 @@ export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Pyth
 export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(TRUE FALSE TRUE)
 
+# 内部调试用
+export INTERNAL_DEBUG=TRUE
+
 #----------
-UNI_BUILD_ROOT=$WORK_PATH
+UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1
 
 # 配置外部库
@@ -57,9 +60,12 @@ config_external_lib()
         FF_ARCH=$1
         FF_BUILD_NAME=$lib-$FF_ARCH
         FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/android/build/$FF_BUILD_NAME/lib
-
         if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
+            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" ] && [ $FF_COMPILE_STATIC = "TRUE" ]; then
+                # 编译
+                . ./android/do-compile-$lib.sh $FF_ARCH
+            fi
+            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.so" ] && [ $FF_COMPILE_SHARED = "TRUE" ]; then
                 # 编译
                 . ./android/do-compile-$lib.sh $FF_ARCH
             fi
@@ -72,27 +78,24 @@ config_external_lib()
 if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64" ]; then
     
     # 开始之前先检查fork的源代码是否存在
-    if [ ! -d android/forksource ]; then
-        . ./compile-init.sh android "offline"
-    fi
+    . ./compile-init.sh android "offline"
     
     # 清除之前编译的
-    rm -rf android/build
+    rm -rf android/build/ffmpeg*
 	
     # 先编译外部库
     config_external_lib $FF_TARGET
     
-    # 最后编译ffmpeg
-    . ./android/do-compile-ffmpeg.sh $FF_TARGET
+    # 最后编译ffmpeg;第二个参数代表开启了编译GDB调试器用的调试信息
+    . ./android/do-compile-ffmpeg.sh $FF_TARGET debug
+#    . ./android/do-compile-ffmpeg.sh $FF_TARGET debug
     
 elif [ "$FF_TARGET" = "all" ]; then
     # 开始之前先检查fork的源代码是否存在
-    if [ ! -d android/forksource ]; then
-        . ./compile-init.sh android "offline"
-    fi
+    . ./compile-init.sh android "offline"
     
     # 清除之前编译的
-    rm -rf android/build
+    rm -rf android/build/ffmpeg-*
 	
     for ARCH in $FF_ALL_ARCHS_ANDROID
     do
