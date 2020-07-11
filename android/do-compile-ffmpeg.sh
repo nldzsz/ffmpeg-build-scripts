@@ -124,9 +124,9 @@ FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -O3 -Wall -pipe \
 export COMMON_FF_CFG_FLAGS=
 . $FF_BUILD_ROOT/../config/module.sh
 
-# 开启Android的MediaCodec GPU编码；必须要开启--enable-jni才能将mediacodec编译进去
+# 开启Android的MediaCodec GPU解码；必须要开启--enable-jni才能将mediacodec编译进去；ffmpeg只支持安卓的硬解码
 export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-jni"
-export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec --enable-decoder=h264_mediacodec"
 # 默认为编译动态库
 shared_enable="--enable-shared"
 static_enable="--disable-static"

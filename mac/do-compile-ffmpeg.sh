@@ -77,6 +77,8 @@ export COMMON_FF_CFG_FLAGS=
 
 # 开启Mac/IOS的videotoolbox GPU编码
 export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
+# 开启Mac/IOS的videotoolbox GPU解码
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-hwaccel=h264_videotoolbox"
 
 #导入ffmpeg的外部库
 EXT_ALL_LIBS=
