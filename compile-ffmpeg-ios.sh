@@ -65,6 +65,7 @@ do_lipo_lib () {
 
 FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
 do_lipo_all () {
+    mkdir -p $ffmpeg_uni_output_dir/lib
     mkdir -p $UNI_BUILD_ROOT/build/ffmpeg-a1universal
     echo ""
     echo "lipo archs: $FF_ALL_ARCHS_IOS"
