@@ -65,8 +65,10 @@ if [ ! -d $FF_SOURCE ]; then
     exit 1
 fi
 
-#FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME
+FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME
+if [ $INTERNAL_DEBUG = "TRUE" ];then
 FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/ffmpeglib
+fi
 
 mkdir -p $FF_PREFIX
 

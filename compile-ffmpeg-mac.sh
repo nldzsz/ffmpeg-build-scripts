@@ -26,6 +26,8 @@ export FF_ALL_ARCHS_MAC="x86_64"
 export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(TRUE FALSE TRUE)
 
+# 内部调试用
+export INTERNAL_DEBUG=FALSE
 #----------
 UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1

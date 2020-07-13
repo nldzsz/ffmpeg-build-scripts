@@ -62,7 +62,7 @@ TOOLS=tools
 # "$@"依然为"$1" "$2" … "$n"
 # $$ 脚本所在的进程ID
 # $? 上个命令的退出状态，或函数的返回值。一般命令返回值 执行成功返回0 失败返回1
-FF_TARGET=$1
+FF_TARGET_HOST=$1
 
 function echo_ffmpeg_version() {
     echo $FFMPEG_COMMIT
@@ -224,14 +224,14 @@ function pull_fork_all() {
 # }
 
 #=== sh脚本执行开始 ==== #
-# $FF_TARGET 表示脚本执行时输入的第一个参数
+# $FF_TARGET_HOST 表示脚本执行时输入的第一个参数
 # 如果参数为 ffmpeg-version 则表示打印出要使用的ffmpeg版本
 # 可以指定要编译的cpu架构类型，比如armv7s 也可以为all或者没有参数 表示全部cpu架构都编译
 # ------ case 语句 ------
-# armv7|armv7s|arm64|i386|x86_64 表示 如果$FF_TARGET的值为armv7,armv7s,arm64,i386,x86_64中任何一个都可以;注意这里不能替换为||
+# ios|android|mac|linux|windows 表示 如果$FF_TARGET_HOST的值为ios,android,mac,linux,windows中任何一个都可以;注意这里不能替换为||
 # * 表示任何字符串
 
-case "$FF_TARGET" in
+case "$FF_TARGET_HOST" in
     ffmpeg-version)
         echo_ffmpeg_version
     ;;
@@ -246,43 +246,47 @@ case "$FF_TARGET" in
         if [ -d mac/forksource ]; then
             rm -rf mac/forksource
         fi
+        if [ -d linux/forksource ]; then
+            rm -rf mac/forksource
+        fi
+        if [ -d windows/forksource ]; then
+            rm -rf mac/forksource
+        fi
         echo "=== clean local source ===="
     ;;
     ios)
-        FORK_SOURCE=$FF_TARGET/forksource
+        FORK_SOURCE=$FF_TARGET_HOST/forksource
         # 根据情况决定是否拉取最新代码
         pull_common
         pull_fork_all $FF_ALL_ARCHS_IOS
     ;;
     android)
-        FORK_SOURCE=$FF_TARGET/forksource
+        FORK_SOURCE=$FF_TARGET_HOST/forksource
         # 根据情况决定是否拉取最新代码
         pull_common
         pull_fork_all $FF_ALL_ARCHS_ANDROID
     ;;
     mac)
-        FORK_SOURCE=$FF_TARGET/forksource
+        FORK_SOURCE=$FF_TARGET_HOST/forksource
         # 根据情况决定是否拉取最新代码
         pull_common
         pull_fork_all $FF_ALL_ARCHS_MAC
     ;;
 	windows)
-        FORK_SOURCE=$FF_TARGET/forksource
+        FORK_SOURCE=$FF_TARGET_HOST/forksource
         # 根据情况决定是否拉取最新代码
         pull_common
         pull_fork_all $FF_WINDOW_ARCH
     ;;
 	linux)
-        FORK_SOURCE=$FF_TARGET/forksource
+        FORK_SOURCE=$FF_TARGET_HOST/forksource
         # 根据情况决定是否拉取最新代码
         pull_common
         pull_fork_all $FF_ALL_ARCHS_LINUX
     ;;
     all|*)
-        FORK_SOURCE=ios/forksource
-        # 根据情况决定是否拉取最新代码
-        pull_common
-        pull_fork_all $FF_ALL_ARCHS_IOS
+        echo "unsuport os !"
+        exit 1
     ;;
 esac
 #=== sh脚本执行结束 ==== #

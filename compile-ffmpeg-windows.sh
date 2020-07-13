@@ -24,7 +24,8 @@ export FF_WINDOW_ARCH="x86_64"
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加3个库
 export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(FALSE TRUE TRUE)
-
+# 内部调试用
+export INTERNAL_DEBUG=FALSE
 UNI_BUILD_ROOT=`pwd`
 
 real-do-compile()

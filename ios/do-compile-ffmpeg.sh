@@ -23,22 +23,15 @@
 # https://github.com/kewlbear/FFmpeg-iOS-build-script/
 
 #--------------------
-echo "===================="
-echo "[*] check host"
-echo "===================="
+echo ""
 # 当脚本执行出现错误时，直接退出脚本的执行
 set -e
-
-#--------------------
-# include
-
 
 #--------------------
 # common defines
 FF_ARCH=$1
 FF_BUILD_OPT=$2
-echo "FF_ARCH=$FF_ARCH"
-echo "FF_BUILD_OPT=$FF_BUILD_OPT"
+echo "build ffmpeg $FF_ARCH....."
 if [ -z "$FF_ARCH" ]; then
     echo "You must specific an architecture 'armv7, armv7s, arm64, i386, x86_64, ...'.\n"
     exit 1
@@ -63,6 +56,8 @@ source $FF_BUILD_ROOT/../config/module.sh
 
 # 开启Mac/IOS的videotoolbox GPU编码
 export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
+# 开启Mac/IOS的videotoolbox GPU解码
+export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-hwaccel=h264_videotoolbox"
 
 # FFMPEG_CFG_FLAGS变量的配置最终都会作为./configure 命令的输入参数
 # 最终会将变量COMMON_FF_CFG_FLAGS的值导入到变量FFMPEG_CFG_FLAGS中
@@ -119,17 +114,6 @@ case "$FF_BUILD_OPT" in
         FFMPEG_CFG_FLAGS_ARM="$FFMPEG_CFG_FLAGS_ARM --enable-small"
     ;;
 esac
-
-echo "build_root: $FF_BUILD_ROOT"
-
-#--------------------
-echo "===================="
-echo "[*] check gas-preprocessor"
-echo "===================="
-FF_TOOLS_ROOT="$FF_BUILD_ROOT/../extra"
-export PATH="$FF_TOOLS_ROOT/gas-preprocessor:$PATH"
-
-echo "gasp: $FF_TOOLS_ROOT/gas-preprocessor/gas-preprocessor.pl"
 
 #--------------------
 echo "===================="
@@ -214,9 +198,6 @@ echo "build_prefix: $FF_BUILD_PREFIX"
 # xcrun -sdk $FF_XCRUN_SDK clang表示使用clang作为ffmpeg的编译器
 # xcrun 做的是定位到 clang，并执行它，附带输入 clang 后面的参数
 # -sdk 表示参数表示选择的平台是iPhoneSimulator还是iPhoneOS
-echo "\n--------------------"
-echo "[*] configurate ffmpeg"
-echo "--------------------"
 FF_XCRUN_SDK=`echo $FF_XCRUN_PLATFORM | tr '[:upper:]' '[:lower:]'`
 FF_XCRUN_CC="xcrun -sdk $FF_XCRUN_SDK clang"
 
@@ -235,9 +216,6 @@ FFMPEG_DEP_LIBS=
 for(( i=0;i<${#lIBS[@]};i++))
 do
     lib=${lIBS[i]};
-    echo "\n--------------------"
-    echo "[*] check111111 $lib"
-    echo "----------------------"
     FF_BUILD_NAME=$lib-$FF_ARCH
 
     FFMPEG_DEP_INC=$FF_BUILD_ROOT/build/$FF_BUILD_NAME/include
@@ -273,7 +251,7 @@ do
 done
 
 #--------------------
-echo "\n--------------------"
+echo "--------------------"
 echo "[*] configure"
 echo "----------------------"
 
@@ -286,11 +264,18 @@ if [ ! -d $FF_BUILD_SOURCE ]; then
     exit 1
 fi
 
+# 开启调试;如果关闭 则注释即可
+#FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-debug --disable-optimizations --enable-ffmpeg --enable-ffplay --enable-ffprobe";
+
 # xcode configuration
 export DEBUG_INFORMATION_FORMAT=dwarf-with-dsym
 
 cd $FF_BUILD_SOURCE
 echo "config: $FFMPEG_CFG_FLAGS $FFMPEG_CFG_CPU --extra-cflags:$FFMPEG_CFLAGS --extra-ldflags:$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS $FF_XCRUN_CC "
+if [ -f "ffmpeg_g" ];then
+make clean
+fi
+
 ./configure \
     $FFMPEG_CFG_FLAGS \
     --cc="$FF_XCRUN_CC" \
@@ -300,9 +285,23 @@ echo "config: $FFMPEG_CFG_FLAGS $FFMPEG_CFG_CPU --extra-cflags:$FFMPEG_CFLAGS --
     --extra-ldflags="$FFMPEG_LDFLAGS $FFMPEG_DEP_LIBS"
 
 #--------------------
-echo "\n--------------------"
+echo "--------------------"
 echo "[*] compile ffmpeg"
 echo "--------------------"
 make -j3 $FF_GASPP_EXPORT
 make install
 cd -
+
+# 执行拷贝
+#${#array[@]}获取数组长度用于循环
+for(( i=0;i<${#lIBS[@]};i++))
+do
+    lib=${lIBS[i]};
+    lib_name=$lib-$FF_ARCH
+    lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
+    ext=".a"
+    
+    if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
+        cp $lib_lib_dir/lib$lib$ext $FF_BUILD_PREFIX/lib/lib$lib$ext
+    fi
+done

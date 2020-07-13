@@ -28,23 +28,25 @@ target_ios=10.0
 export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(TRUE FALSE TRUE)
 
+
+# 内部调试用
+export INTERNAL_DEBUG=FALSE
 #----------
 UNI_BUILD_ROOT=`pwd`/ios
+# 通过. xx.sh的方式执行shell脚本，变量会被覆盖
 FF_TARGET=$1
 
 set -e
 #----------
 
-echo_archs() {
-    echo "===================="
-    echo "[*] check xcode version"
-    echo "===================="
-    echo "FF_ALL_ARCHS_IOS = $FF_ALL_ARCHS_IOS"
-}
-
-FF_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
-do_lipo_ffmpeg () {
-    LIB_FILE=$1
+ffmpeg_uni_output_dir=$UNI_BUILD_ROOT/build/ffmpeg-a1universal
+if [ $INTERNAL_DEBUG = "TRUE" ];then
+    ffmpeg_uni_output_dir=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-ios/ffmpeglib
+fi
+do_lipo_lib () {
+    
+    # 将ffmpeg的各个模块生成的库以及引用的外部库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
+    LIB_FILE=$1.a
     LIPO_FLAGS=
     for ARCH in $FF_ALL_ARCHS_IOS
     do
@@ -55,41 +57,34 @@ do_lipo_ffmpeg () {
             echo "skip $LIB_FILE of $ARCH";
         fi
     done
-
-    xcrun lipo -create $LIPO_FLAGS -output $UNI_BUILD_ROOT/build/universal/lib/$LIB_FILE
-    xcrun lipo -info $UNI_BUILD_ROOT/build/universal/lib/$LIB_FILE
+    
+    ffmpeg_output_dir=$ffmpeg_uni_output_dir/lib/$LIB_FILE
+    xcrun lipo -create $LIPO_FLAGS -output $ffmpeg_output_dir
+    xcrun lipo -info $ffmpeg_output_dir
 }
 
-EXT_LIBS="crypto ssl fdk-aac mp3lame x264"
-do_lipo_lib () {
-    LIB=$1
-    LIB_FILE=lib$LIB.a
-    LIPO_FLAGS=
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/$LIB-$ARCH/lib/$LIB_FILE"
-        if [ -f "$ARCH_LIB_FILE" ]; then
-            LIPO_FLAGS="$LIPO_FLAGS $ARCH_LIB_FILE"
-        else
-            echo "skip $LIB_FILE of $ARCH";
-        fi
-    done
-
-    if [ "$LIPO_FLAGS" != "" ]; then
-        xcrun lipo -create $LIPO_FLAGS -output $UNI_BUILD_ROOT/build/universal/lib/$LIB_FILE
-        xcrun lipo -info $UNI_BUILD_ROOT/build/universal/lib/$LIB_FILE
-    fi
-}
-
+FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
 do_lipo_all () {
-    mkdir -p $UNI_BUILD_ROOT/build/universal/lib
+    mkdir -p $UNI_BUILD_ROOT/build/ffmpeg-a1universal
+    echo ""
     echo "lipo archs: $FF_ALL_ARCHS_IOS"
-    # 将ffmpeg的各个模块生成的库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
-    for FF_LIB in $FF_LIBS
+    
+    # 合并ffmpeg库各个模块的不同平台库
+    for LIB in $FF_FFMPEG_LIBS
     do
-        do_lipo_ffmpeg "$FF_LIB.a";
+        do_lipo_lib $LIB
     done
-
+    
+    # 合并ffmpeg库引用的第三方库的各个平台的库;${#array[@]}获取数组长度用于循环
+    for(( i=0;i<${#lIBS[@]};i++))
+    do
+        lib=${lIBS[i]};
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            do_lipo_lib lib"$lib";
+        fi
+    done;
+    
+    # 拷贝ffmpeg头文件
     ANY_ARCH=
     for ARCH in $FF_ALL_ARCHS_IOS
     do
@@ -97,10 +92,10 @@ do_lipo_all () {
         if [ -d "$ARCH_INC_DIR" ]; then
             if [ -z "$ANY_ARCH" ]; then
                 ANY_ARCH=$ARCH
-                cp -R "$ARCH_INC_DIR" "$UNI_BUILD_ROOT/build/universal/"
+                cp -R "$ARCH_INC_DIR" "$UNI_BUILD_ROOT/build/ffmpeg-a1universal/include"
             fi
 
-            UNI_INC_DIR="$UNI_BUILD_ROOT/build/universal/include"
+            UNI_INC_DIR="$UNI_BUILD_ROOT/build/ffmpeg-a1universal/include"
 
             mkdir -p "$UNI_INC_DIR/libavutil/$ARCH"
             cp -f "$ARCH_INC_DIR/libavutil/avconfig.h"  "$UNI_INC_DIR/libavutil/$ARCH/avconfig.h"
@@ -113,154 +108,69 @@ do_lipo_all () {
             # cp -f tools/config.h                        "$UNI_INC_DIR/libffmpeg/config.h"
         fi
     done
-    
-    # 将所有的三方库合并为一个
-    #${#array[@]}获取数组长度用于循环
-    for(( i=0;i<${#lIBS[@]};i++))
-    do
-        lib=${lIBS[i]};
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            do_lipo_lib "$EXT_LIB";
-        fi
-    done;
-}
-
-# 将所有的.a库合并成一个库(包括三方库和ffmpeg的库)
-do_lipo_all_one () {
-	
-   	finallipoLibs=""
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-    	mkdir -p $UNI_BUILD_ROOT/build/tmp-$ARCH/lib
-    	lipoLibs=""
-    	
-    	# ffmpeg库
-    	for LIB_FILE in $FF_LIBS
-    	do
-        	ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/lib/$LIB_FILE.a"
-        	echo $ARCH_LIB_FILE
-        	if [ -f "$ARCH_LIB_FILE" ]; then
-            	lipoLibs="$lipoLibs $ARCH_LIB_FILE"
-        	else
-            	echo "skip $LIB_FILE of $ARCH";
-        	fi
-    	done
-
-    	# 三方库 EXT_LIBS
-	    for LIB in $EXT_LIBS
-	    do
-    		LIB_FILE=lib$LIB.a
-	        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/$LIB-$ARCH/lib/$LIB_FILE"
-	        if [ -f "$ARCH_LIB_FILE" ]; then
-	            lipoLibs="$lipoLibs $ARCH_LIB_FILE"
-	        else
-	            echo "skip $LIB_FILE of $ARCH";
-	        fi
-	    done
-
-	    lipocmd="libtool -static $lipoLibs -o $UNI_BUILD_ROOT/build/tmp-$ARCH/lib/libxrzffmpeg.a"
-    	echo "$lipocmd"
-    	xcrun $lipocmd
-    	finallipoLibs="$finallipoLibs $UNI_BUILD_ROOT/build/tmp-$ARCH/lib/libxrzffmpeg.a"
-	done
-    
-    mkdir -p $UNI_BUILD_ROOT/build/universal/lib
-    lipocmd="lipo -create $finallipoLibs -output $UNI_BUILD_ROOT/build/universal/libxrzffmpeg.a"
-    echo "$lipocmd"
-    xcrun $lipocmd
-    
-    rm -rf $UNI_BUILD_ROOT/build/tmp-*
 }
 
 # 编译外部库
 function compile_external_lib()
 {
+    FF_ARCH=$1
     
     #${#array[@]}获取数组长度用于循环
-    for(( i=0;i<${#lIBS[@]};i++)) 
+    for(( i=0;i<${#lIBS[@]};i++))
     do
         lib=${lIBS[i]};
-        for FF_ARCH in $FF_ALL_ARCHS_IOS 
-        do
-            FF_BUILD_NAME=$lib-$FF_ARCH
-            FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_BUILD_NAME/lib
+        FF_BUILD_NAME=$lib-$FF_ARCH
+        FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_BUILD_NAME/lib
 
-            if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-                if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
-                    # 编译
-                    . ./ios/do-compile-$lib.sh $FF_ARCH $target_ios
-                fi
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
+                # 编译
+                . ./ios/do-compile-$lib.sh $FF_ARCH $target_ios
             fi
-        done;
+        fi
     done;
 }
 
 #----------
-if [ "$FF_TARGET" = "armv7" -o "$FF_TARGET" = "armv7s" -o "$FF_TARGET" = "arm64" ]; then
-    # 开始之前先检查fork的源代码是否存在
-    if [ ! -d ios/forksource ]; then
-        . ./compile-init.sh ios "offline"
-    fi
+if [ "$FF_TARGET" = "armv7" -o "$FF_TARGET" = "armv7s" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "i386" -o "$FF_TARGET" = "x86_64" -o "$FF_TARGET" = "all" ]; then
+    # 获取源码，不存在在则拉取
+    . ./compile-init.sh ios "offline"
     
-    # 先编译外部库
-    compile_external_lib
-    . ./ios/do-compile-ffmpeg.sh $FF_TARGET
-    do_lipo_all
-elif [ "$FF_TARGET" = "i386" -o "$FF_TARGET" = "x86_64" ]; then
-    # 开始之前先检查fork的源代码是否存在
-    if [ ! -d ios/forksource ]; then
-        . ./compile-init.sh ios "offline"
-    fi
-    
-    # 先编译外部库
-    compile_external_lib
-    . ./ios/do-compile-ffmpeg.sh $FF_TARGET
-    do_lipo_all
-elif [ "$FF_TARGET" = "lipo" ]; then
-    do_lipo_all
-elif [ "$FF_TARGET" = "all" ]; then
-    # 开始之前先检查fork的源代码是否存在
-    if [ ! -d ios/forksource ]; then
-        . ./compile-init.sh ios "offline"
-    fi
-    
-    # 先编译外部库
-    compile_external_lib
-    
-    # 清除之前编译的
+    # 删除ffmpeg库目录
     rm -rf ios/build/ffmpeg-*
-    rm -rf ios/build/universal
-    rm -rf ios/build/universal-*
-    # 重新开始编译
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        . ./ios/do-compile-ffmpeg.sh $ARCH
-    done
 
+    if [ "$FF_TARGET" != "all" ];then
+        # 编译外部库，已经编译过则跳过。如果要重新编译，删除build下的外部库
+        compile_external_lib $FF_TARGET
+        
+        # 编译ffmpeg
+        . ./ios/do-compile-ffmpeg.sh $FF_TARGET $target_ios
+    else
+        
+        for ARCH in $FF_ALL_ARCHS_IOS
+        do
+            # 编译外部库，已经编译过则跳过。如果要重新编译，删除build下的外部库
+            compile_external_lib $ARCH
+            
+            # 编译ffmpeg库
+            . ./ios/do-compile-ffmpeg.sh $ARCH $target_ios
+        done
+    fi
+    
+    # 合并库
     do_lipo_all
-    do_lipo_all_one
-elif [ "$FF_TARGET" = "check" ]; then
-    # 分支下必须要有语句 否则出错
-    echo "check"
 elif [ "$FF_TARGET" = "clean" ]; then
 
     echo "=================="
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        echo "clean ffmpeg-$ARCH"
-        echo "=================="
-        cd ios/forksource/ffmpeg-$ARCH && git clean -xdf && cd -
-    done
-    echo "clean build cache"
+    echo "clean ............"
     echo "================="
-    rm -rf ios/build/ffmpeg-*
+    rm -rf ios/build
+    rm -rf ios/forksource
     echo "clean success"
 else
     echo "Usage:"
-    echo "  compile-ffmpeg.sh armv7|armv7s|arm64|i386|x86_64"
-    echo "  compile-ffmpeg.sh lipo"
+    echo "  compile-ffmpeg.sh arm64|x86_64"
     echo "  compile-ffmpeg.sh all"
     echo "  compile-ffmpeg.sh clean"
-    echo "  compile-ffmpeg.sh check"
     exit 1
 fi

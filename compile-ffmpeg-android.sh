@@ -44,7 +44,7 @@ export lIBS=(x264 fdk-aac mp3lame)
 export LIBFLAGS=(TRUE FALSE TRUE)
 
 # 内部调试用
-export INTERNAL_DEBUG=TRUE
+export INTERNAL_DEBUG=FALSE
 
 #----------
 UNI_BUILD_ROOT=`pwd`
@@ -86,8 +86,8 @@ if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64
     # 先编译外部库
     config_external_lib $FF_TARGET
     
-    # 最后编译ffmpeg;第二个参数代表开启了编译GDB调试器用的调试信息
-    . ./android/do-compile-ffmpeg.sh $FF_TARGET debug
+    # 最后编译ffmpeg;第二个参数代表开启了编译GDB调试器用的调试信息;备注：不管静态库还是动态库，都无法调试。
+    . ./android/do-compile-ffmpeg.sh $FF_TARGET
 #    . ./android/do-compile-ffmpeg.sh $FF_TARGET debug
     
 elif [ "$FF_TARGET" = "all" ]; then
