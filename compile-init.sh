@@ -63,6 +63,13 @@ All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.1
 
 # =====自定义字典实现======== #
 
+# 平台
+uname=`uname`
+if [ $uname == "Darwin" ];then
+export OUR_SED="sed -i '' "
+else
+export OUR_SED="sed -i"
+fi
 
 # 公用工具脚本路径
 TOOLS=tools
@@ -132,10 +139,10 @@ function fork_from_git() {
 # $2 代表库的名称 ffmpeg x264
 # $3 代表操作系统平台 ios/windows/linux/android
 function copy_from_local() {
-    echo "== pull $3 $2 fork $1 =="
+    echo "== copy $3 $2 fork $1 =="
     # 平台对应的forksource目录下存在对应的源码目录，则默认已经有代码了，不拷贝了；如果要重新拷贝，先手动删除forksources下对应的源码
     if [ -d $3/forksource/$2-$1 ]; then
-        echo "== pull $3 $2 fork $1 == has exist return"
+        echo "== copy $3 $2 fork $1 == has exist return"
         return
     fi
    
@@ -160,9 +167,9 @@ function prepare_all() {
         for lib in $(echo ${!All_Resources[*]})
         do
             if [[ -d extra/${LIBS[$lib]} ]] && [[ ${LIBFLAGS[$lib]} = "TRUE" ]];then
-                if [ ${LIBS[$lib]} = "ffmpeg" ];then
+                if [ ${LIBS[$lib]} = "ffmpeg" ] && [ $INTERNAL_DEBUG = "TRUE" ];then
                     # ffmpeg用内部自己研究的代码
-                    copy_from_local $ARCH ffmpeg "/Users/apple/devoloper/mine/ffmpeg/ffmpeg-source"
+                    cp -rf "/Users/apple/devoloper/mine/ffmpeg/ffmpeg-source" $1/forksource/${LIBS[$lib]}-$ARCH
                     continue
                 fi
                 

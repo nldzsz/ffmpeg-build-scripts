@@ -28,9 +28,9 @@ if [[ ! `which wget` ]]; then
 fi
 echo -e "check wget ok......"
 
-# yasm是Mac平台和PC平台的汇编器，用于windows，linux，osx系统的ffmpeg汇编部分编译；
-echo "check yasm env......"
-if [[ ! `which yasm` ]]; then
+# yasm是PC平台的汇编器(nasm也是，不过yasm是nasm的升级版)，用于windows，linux，osx系统的ffmpeg汇编部分编译；
+if [[ ! `which yasm` ]] && [[ $FF_PLATFORM_TARGET != "ios" && $FF_PLATFORM_TARGET != "android" ]]; then
+    echo "check yasm env......"
 	echo "yasm not found begin install....."
 	if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台
@@ -49,39 +49,41 @@ if [[ ! `which yasm` ]]; then
         # windows平台
         apt-cyg install yasm || exit 1
     fi
+    echo -e "check yasm ok......"
 fi
-echo -e "check yasm ok......"
 
-if [[ $uname = "Darwin" ]]  && [[ ! `which autoconf` ]]; then
+if [[ $uname = "Darwin" || $uname = "Linux" ]]  && [[ ! `which autoconf` ]]; then
     # Mac 平台 autoconf用于基于GNU的make生成工具，有些库不支持Libtool;
     echo "check autoconf env......"
     echo "autoconf not found begin install....."
-    brew install autoconf || exit 1
+    
+    
+    if [[ "$(uname)" == "Darwin" ]];then
+        # Mac平台
+        brew install autoconf || exit 1
+    elif [[ "$(uname)" == "Linux" ]];then
+        # Linux平台平台
+        sudo apt-get install autoconf
+        #result=$(echo `autoconf --version` | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/' )
+        #if [[ "$result" < "1.16.1" ]];then
+        #    sudo apt-get --purge remove automake
+        #    wget http://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.gz
+        #    tar zxvf automake-1.16.1.tar.gz || exit 1
+        #   rm automake-1.16.1.tar.gz
+        #   cd automake-1.16.1
+        #    ./configure || exit 1
+        #    sudo make && sudo make install || exit 1
+        #   cd -
+        #    rm -rf automake-1.16.1
+        #fi
+    else
+        # windows平台
+        apt-cyg install autoconf || exit 1
+    fi
     echo -e "check autoconfl ok......"
 fi
 
-if [[ $uname = "Linux" ]] && [[ ! `which autoconf` ]]; then
-	echo "check autoconf env......"
-    echo "autoconf not found begin install....."
-	sudo apt-get install autoconf
-	#result=$(echo `autoconf --version` | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/' )
-	#if [[ "$result" < "1.16.1" ]];then
-	#	sudo apt-get --purge remove automake
-	#	wget http://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.gz
-	#	tar zxvf automake-1.16.1.tar.gz || exit 1
-    #   rm automake-1.16.1.tar.gz
-    #   cd automake-1.16.1
-    #    ./configure || exit 1
-	#	sudo make && sudo make install || exit 1
-    #   cd -
-    #    rm -rf automake-1.16.1
-	#fi
-	
-    echo -e "check autoconf ok......"
-fi
-
-
-if [[ $uname = "Darwin" ]]  && [[ ! `which gas-preprocessor.pl` ]]; then
+if [[ $uname = "Darwin" && $FF_PLATFORM_TARGET == "ios" ]]  && [[ ! `which gas-preprocessor.pl` ]]; then
     # gas-preprocessor.pl是IOS平台用的汇编器，安卓则包含在ndk目录中，不需要单独再指定
     echo "check gas-preprocessor.pl env......"
 	echo "gas-preprocessor.pl not found begin install....."
@@ -102,4 +104,14 @@ if [[ "$uname" = CYGWIN_NT-* ]]  && [[ ! `which automake` ]]; then
     echo -e "check automake ok......"
 fi
 
-echo -e "check build env over ======="
+# 如果要编译ffplay则还需要编译SDL2库
+if [[ $ENABLE_FFMPEG_TOOLS = "TRUE" ]] && [[ $FF_PLATFORM_TARGET != "ios" && $FF_PLATFORM_TARGET != "android" ]]; then
+    echo "check SDL2 env......"
+    if [[ $uname = "Darwin" ]] && [[ ! -d /usr/local/Cellar/sdl2 ]]; then
+        brew install SDL2 || exit 1
+    elif [[ $uname = "Linux" ]] && [[ ! `dpkg -l|grep libsdl` ]];then
+        sudo apt-get install libsdl2-2.0
+        sudo apt-get install libsdl2-dev
+    fi
+    echo -e "check SDL2 env ok......"
+fi
