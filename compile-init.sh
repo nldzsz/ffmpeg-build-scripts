@@ -61,6 +61,19 @@ All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10
 # fribidi
 All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.10
 
+# 外部库引入ffmpeg时的配置参数
+# 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
+# 否则外部库无法加载到ffmpeg中
+# libx264和mp3lame只提供编码功能，h264和mp3的解码是ffmpeg内置的库(--enable-decoder=h264和--enable-decoder=mp3float开启)
+LIBS_PARAM[ffmpeg]=""
+LIBS_PARAM[x264]="--enable-gpl --enable-libx264 --enable-encoder=libx264"
+LIBS_PARAM[fdkaac]="--enable-nonfree --enable-libfdk-aac --enable-encoder=libfdk_aac"
+LIBS_PARAM[mp3lame]="--enable-libmp3lame --enable-encoder=libmp3lame"
+LIBS_PARAM[ass]="--enable-libass --enable-filter=subtitles"
+LIBS_PARAM[fribidi]="--enable-filter=drawtext --enable-libfribidi"
+LIBS_PARAM[freetype]="--enable-libfreetype"
+export LIBS_PARAM
+
 # =====自定义字典实现======== #
 
 # 平台
@@ -169,7 +182,15 @@ function prepare_all() {
             if [[ -d extra/${LIBS[$lib]} ]] && [[ ${LIBFLAGS[$lib]} = "TRUE" ]];then
                 if [ ${LIBS[$lib]} = "ffmpeg" ] && [ $INTERNAL_DEBUG = "TRUE" ];then
                     # ffmpeg用内部自己研究的代码
-                    cp -rf "/Users/apple/devoloper/mine/ffmpeg/ffmpeg-source" $1/forksource/${LIBS[$lib]}-$ARCH
+                    echo "== copy $1 ffmpeg fork $ARCH =="
+                    
+                    if [ ! -d $1/forksource/ffmpeg-$ARCH ];then
+                        mkdir -p $1/forksource/ffmpeg-$ARCH
+                        cp -rf /Users/apple/devoloper/mine/ffmpeg/ffmpeg-source/ $1/forksource/ffmpeg-$ARCH
+                    else
+                        echo "== copy $1 ffmpeg fork $ARCH == has exist return"
+                    fi
+                    
                     continue
                 fi
                 

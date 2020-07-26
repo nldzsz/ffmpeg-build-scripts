@@ -170,7 +170,7 @@ do-compile-ffmpeg()
 	FF_SOURCE=$FF_BUILD_ROOT/forksource/$FF_BUILD_NAME-$FF_PC_ARCH
 	FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME-$FF_PC_ARCH
     if [ $INTERNAL_DEBUG = "TRUE" ];then
-        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/ffmpeglib
+        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
     fi
 	mkdir -p $FF_PREFIX
 
@@ -197,7 +197,8 @@ do-compile-ffmpeg()
 		lib_inc_dir=$FF_BUILD_ROOT/build/$lib_name/include
 		lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
 		if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
-			COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS"
+
+			COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 
 			FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -I${lib_inc_dir}"
 			FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS -L${lib_lib_dir}"
