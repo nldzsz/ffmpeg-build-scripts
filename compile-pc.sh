@@ -24,10 +24,12 @@ set -e
 export FF_PC_ARCH="x86_64"
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
-export LIBFLAGS=([ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [ass]=TRUE [fribidi]=TRUE [freetype]=TRUE)
+export LIBFLAGS=(
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [ass]=TRUE [fribidi]=TRUE [freetype]=TRUE [png]=TRUE
+)
 
 # 内部调试用
-export INTERNAL_DEBUG=FALSE
+export INTERNAL_DEBUG=TRUE
 
 # 是否开启ffplay ffmpeg ffprobe的编译；默认关闭
 export ENABLE_FFMPEG_TOOLS=FALSE
@@ -100,14 +102,14 @@ do-compile-mp3lame()
 #编译ass
 do-compile-ass()
 {
-    if [ ! -f SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/ass-$FF_PC_ARCH/configure ];then
+    if [ ! -f $UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/ass-$FF_PC_ARCH/configure ];then
         SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/ass-$FF_PC_ARCH
         cd $SOURCE
         ./autogen.sh
         cd -
     fi
     
-    CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend "
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-coretext --disable-require-system-font-provider --disable-profile "
     real-do-compile "$CONFIGURE_FLAGS" "ass"
 }
 #编译freetype
@@ -119,7 +121,7 @@ do-compile-freetype()
 #编译fribidi
 do-compile-fribidi()
 {
-    if [ ! -f SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/fribidi-$FF_PC_ARCH/configure ];then
+    if [ ! -f $UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/fribidi-$FF_PC_ARCH/configure ];then
         SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/fribidi-$FF_PC_ARCH
         cd $SOURCE
         ./autogen.sh
@@ -127,6 +129,12 @@ do-compile-fribidi()
     fi
     CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
     real-do-compile "$CONFIGURE_FLAGS" "fribidi"
+}
+#编译png
+do-compile-png()
+{
+    CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-unversioned-libpng-pc --disable-unversioned-libpng-config "
+    real-do-compile "$CONFIGURE_FLAGS" "png"
 }
 
 # 编译外部库
@@ -196,7 +204,7 @@ do-compile-ffmpeg()
 		lib_name=$lib-$FF_PC_ARCH
 		lib_inc_dir=$FF_BUILD_ROOT/build/$lib_name/include
 		lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
-		if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
+		if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
 
 			COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 
@@ -264,7 +272,7 @@ useage()
 {
     echo "Usage:"
     echo "  compile-ffmpeg-pc.sh mac|windows|linux"
-    echo "  compile-ffmpeg-pc.sh mac|windows|linux clean"
+    echo "  compile-ffmpeg-pc.sh mac|windows|linux clean|clean*  (default clean ffmpeg,cleanx264 will clean x264)"
     echo "  compile-ffmpeg-pc.sh mac|windows|linux reset"
     exit 1
 }
@@ -284,30 +292,33 @@ fi
 
 #=== sh脚本执行开始 ==== #
 # $FF_PC_ACTION 表示脚本执行时输入的第一个参数
-if [ "$FF_PC_ACTION" == "reset" ]; then
-    
-    rm_extra_source
-    rm_fork_source $FF_PC_TARGET
-    rm -rf $FF_PC_TARGET/build
-    
-elif [ "$FF_PC_ACTION" == "clean" ]; then
-    
-    rm_fork_source $FF_PC_TARGET
-    rm -rf $FF_PC_TARGET/build
-    
-#    echo "clean ffmpeg"
-#    cd $FF_PC_TARGET/forksource/ffmpeg && git clean -xdf && cd -
-#    echo "clean build cache"
-#    rm -rf $FF_PC_TARGET/build/ffmpeg-*
-#    echo "clean success"
-else
-    prepare_all $FF_PC_TARGET $FF_PC_ARCH
-    
-    rm -rf $FF_PC_TARGET/build/ffmpeg-*
-    
-    # 先编译外部库
-    compile_external_lib_ifneed
-    
-    # 最后编译ffmpeg
-    do-compile-ffmpeg
-fi
+case "$FF_PC_ACTION" in
+    reset)
+        rm_extra_source
+        rm_all_fork_source $FF_PC_TARGET
+        rm -rf $FF_PC_TARGET/build
+    ;;
+    clean*)
+        # 清除对应库forksource下的源码目录和build目录
+        name=${FF_PC_ACTION#clean*}
+        rm_fork_source $FF_PC_TARGET $name $FF_PC_ARCH
+        rm_build $FF_PC_TARGET $name $FF_PC_ARCH
+            
+        #    echo "clean ffmpeg"
+        #    cd $FF_PC_TARGET/forksource/ffmpeg && git clean -xdf && cd -
+        #    echo "clean build cache"
+        #    rm -rf $FF_PC_TARGET/build/ffmpeg-*
+        #    echo "clean success"
+    ;;
+    *)
+        prepare_all $FF_PC_TARGET $FF_PC_ARCH
+        
+        rm -rf $FF_PC_TARGET/build/ffmpeg-*
+        
+        # 先编译外部库
+        compile_external_lib_ifneed
+        
+        # 最后编译ffmpeg
+        do-compile-ffmpeg
+    ;;
+esac

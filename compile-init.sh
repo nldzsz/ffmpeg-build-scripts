@@ -29,6 +29,7 @@ mp3lame=3
 ass=4
 freetype=5
 fribidi=6
+png=7
 
 # 各个源码的名字
 LIBS[ffmpeg]=ffmpeg
@@ -38,6 +39,7 @@ LIBS[mp3lame]=mp3lame
 LIBS[ass]=ass
 LIBS[freetype]=freetype
 LIBS[fribidi]=fribidi
+LIBS[png]=png
 
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
 # ffmpeg
@@ -61,6 +63,9 @@ All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10
 # fribidi
 All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.10
 
+# png
+All_Resources[png]=https://nchc.dl.sourceforge.net/project/libpng/libpng16/1.6.37/libpng-1.6.37.tar.gz
+
 # 外部库引入ffmpeg时的配置参数
 # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
 # 否则外部库无法加载到ffmpeg中
@@ -72,6 +77,7 @@ LIBS_PARAM[mp3lame]="--enable-libmp3lame --enable-encoder=libmp3lame"
 LIBS_PARAM[ass]="--enable-libass --enable-filter=subtitles"
 LIBS_PARAM[fribidi]="--enable-filter=drawtext --enable-libfribidi"
 LIBS_PARAM[freetype]="--enable-libfreetype"
+LIBS_PARAM[png]=""
 export LIBS_PARAM
 
 # =====自定义字典实现======== #
@@ -209,9 +215,31 @@ function rm_extra_source()
     echo "....rm extra source finish...."
 }
 
+function rm_all_fork_source()
+{
+    echo "....rm $1 forksource $2 source begin...."
+    rm -rf $1/forksource
+    echo "....rm $1 forksource $2 source finish...."
+    
+}
+
 function rm_fork_source()
 {
-    echo "....rm forksource source begin...."
-    rm -rf $1/forksource
-    echo "....rm forksource source finish...."
+    for ARCH in ${*:3}
+    do
+        echo "....rm $1 forksource $2 $3 source begin...."
+        rm -rf $1/forksource/$2-$3
+        echo "....rm $1 forksource $2 $3 source finish...."
+    done
+    
+}
+
+function rm_build()
+{
+    for ARCH in ${*:3}
+    do
+        echo "....rm $1 forksource $2 $3 build begin...."
+        rm -rf $1/build/$2-$3
+        echo "....rm $1 forksource $2 build finish...."
+    done
 }
