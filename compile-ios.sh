@@ -23,7 +23,7 @@ set -e
 
 # 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
 # FF_ALL_ARCHS_IOS="armv7 armv7s arm64 i386 x86_64"
-export FF_ALL_ARCHS_IOS="arm64 arm64e x86_64"
+export FF_ALL_ARCHS_IOS="arm64e arm64 x86_64"
 target_ios=10.0
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
@@ -53,17 +53,39 @@ set_toolchain_path()
         local PLATFORM=iphonesimulator
     ;;
     esac
+    mkdir -p ${UNI_BUILD_ROOT}/build/ios-$ARCH/pkgconfig
     
     # xcrun 是调用iOS交叉编译工具的命令 通过xcrun --help 可以查看具体使用，后面跟具体的编译工具 如ar cc等等
-    # 定义编译工具CC CXX AR等必须要用export进行声明，否则没有效果;-f代表输出对应工具的绝对路径
-    export CC=$(xcrun --sdk $PLATFORM -f clang)
-    export CXX=$(xcrun --sdk $PLATFORM -f clang++)
+    # 定义编译工具CC CXX AR等必须要用export进行声明，否则没有效果;-f代表输出对应工具的绝对路径;如下CC和CXX只要直接使用clang和clang++(否则编译mp3lame库会出错，原因未知:fixbug)
+    export CC=clang
+    export CXX=clang++
     export AR=$(xcrun --sdk $PLATFORM -f ar)
     export OBJC=$(xcrun --sdk $PLATFORM -f clang)
     export LD=$(xcrun --sdk $PLATFORM -f ld)
     export RANLIB=$(xcrun --sdk $PLATFORM -f ranlib)
     export STRIP=$(xcrun --sdk $PLATFORM -f strip)
-    export SDKPATH=$(xcrun --sdk $PLATFORM -f strip)
+    export SDKPATH=$(xcrun --sdk $PLATFORM --show-sdk-path)
+    export PKG_CONFIG_LIBDIR="${UNI_BUILD_ROOT}/build/ios-$ARCH/pkgconfig"
+    export ZLIB_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/zlib.pc"
+    export BZIP2_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/bzip2.pc"
+    export LIB_ICONV_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/libiconv.pc"
+    export LIB_UUID_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/uuid.pc"
+    
+    if [ ! -f ${ZLIB_PACKAGE_CONFIG_PATH} ]; then
+        create_zlib_system_package_config $SDKPATH $PKG_CONFIG_LIBDIR
+    fi
+
+    if [ ! -f ${LIB_ICONV_PACKAGE_CONFIG_PATH} ]; then
+        create_libiconv_system_package_config $SDKPATH $PKG_CONFIG_LIBDIR
+    fi
+
+    if [ ! -f ${BZIP2_PACKAGE_CONFIG_PATH} ]; then
+        create_bzip2_system_package_config $SDKPATH $PKG_CONFIG_LIBDIR
+    fi
+
+    if [ ! -f ${LIB_UUID_PACKAGE_CONFIG_PATH} ]; then
+        create_libuuid_system_package_config $SDKPATH $PKG_CONFIG_LIBDIR
+    fi
 }
 
 ffmpeg_uni_output_dir=$UNI_BUILD_ROOT/build/ffmpeg-a1universal
@@ -158,11 +180,13 @@ real_do_compile()
     # 3、编译器优化相关参数，这部分参数往往跟平台以及库无关，比如-O2 -Wno-ignored-optimization-argument等等加快编译进度的参数 -g开启编译调试信息
     # 4、系统路径以及系统版本等相关参数 -isysroot=<SDK_PATH> -I<SDK_PATH>/usr/include
     CFLAGS=
+    ASM_FLAGS=
     if [ $ARCH = "x86_64" ];then
         PLATFORM="iphonesimulator"
         CFLAGS="-arch x86_64 -march=x86-64 -msse4.2 -mpopcnt -m64 -mtune=intel"
         CFLAGS="$CFLAGS -mios-simulator-version-min=$target_ios"
         HOST=x86_64-ios-darwin
+        ASM_FLAGS="--disable-asm"
     elif [ $ARCH = "arm64" ];then
         PLATFORM="iphoneos"
         CFLAGS="-arch arm64 -march=armv8-a+crc+crypto -mcpu=generic"
@@ -170,7 +194,7 @@ real_do_compile()
         HOST=aarch64-ios-darwin
     elif [ $ARCH = "arm64e" ];then
         PLATFORM="iphoneos"
-        CFLAGS="-arch arm64e -march=-march=armv8.3-a+crc+crypto -mcpu=generic"
+        CFLAGS="-arch arm64e -march=armv8.3-a+crc+crypto -mcpu=generic"
         CFLAGS="$CFLAGS -miphoneos-version-min=$target_ios -fembed-bitcode"
         HOST=aarch64-ios-darwin
     else
@@ -178,7 +202,6 @@ real_do_compile()
         exit 1
     fi
     
-    local SDKPATH=$(xcrun --sdk $PLATFORM --show-sdk-path)
     # -target参数一般没用(用于编译一个编译器的时候才有用)
     CFLAGS="$CFLAGS -target $HOST"
     # -isysroot 指定了交叉编译系统的根路径，那么所有交叉编译工具或者其它相关的搜索路径都将基于此(如果不指定将按照本机/导致搜索不到路径而编译失败)
@@ -186,7 +209,7 @@ real_do_compile()
     CFLAGS="$CFLAGS -isysroot $SDKPATH -I$SDKPATH/usr/include"
     LDFLAGS="$CFLAGS -L${SDKPATH}/usr/lib -lc++"
     CXXFLAGS="$CFLAGS"
-
+    
     # 对于符合GNU规范的configure配置脚本(比如通过Autoconf工具生成的),它一般具有如下通用配置参数选项：
     # 1、--host;表示编译出来的二进制程序(可执行程序和库)所执行的主机，如果是本机执行则无需指定。如果是交叉编译则需要指定
     # 2、--prefix;编译生成的库、可执行程序、.pc文件的存放路径
@@ -199,23 +222,38 @@ real_do_compile()
     #
     # 备注：x264 ffmpeg等非Autoconf生成的configure配置脚本以及编译器参数，可能有些不同;CFLAGS可能不同的库有些一不一样
     local SYSROOT="--with-sysroot"
+    GAS_PL="gas-preprocessor.pl"
     if [ $lib = "x264" ];then
         SYSROOT="--sysroot"
-        export AS="$SOURCE/tools/gas-preprocessor.pl -arch aarch64 -- ${CC} ${CFLAGS}"
+        GAS_PL="$SOURCE/tools/gas-preprocessor.pl"
     elif [ $lib = "fdk-aac" ];then
         CFLAGS="$CFLAGS -Wno-error=unused-command-line-argument-hard-error-in-future"
-        export AS="gas-preprocessor.pl -arch aarch64 -- ${CC} ${CFLAGS}"
     else
         # C语言标准，clang编译器默认使用gnu99的C语言标准。不同的库可能使用的C语言标准不一样，不过一般影响不大，如果有影响则需要特别指定
         # -Wunused表示所有未使用给与警告(-Wunused-xx 表示具体的未使用警告,-Wno-unused-xxx 表示取消具体未使用警告)
-        CFLAGS="$CFLAGS -std=c99 -Wno-unused-function"
-        export AS="gas-preprocessor.pl -arch aarch64 -- ${CC} ${CFLAGS}"
+        CFLAGS="$CFLAGS -Wunused-function"
     fi
+    
+    case $ARCH in
+        arm64|arm64e)
+            export AS="$GAS_PL -arch aarch64 -- ${CC} ${CFLAGS}"
+        ;;
+        *)
+            if [ $lib = "x264" ];then
+                CONFIGURE_FLAGS=" $CONFIGURE_FLAGS $ASM_FLAGS "
+            fi
+            export AS="${CC} ${CFLAGS}"
+        ;;
+    esac
     
     # 像CC AR CFLAGS CXXFLAGS等等这一类makefile用于配置编译器参数的环境变量一定要用export导入，否则不会生效
     export CFLAGS
     export CXXFLAGS
     export LDFLAGS
+    
+    set +e
+    make distclean
+    set -e
     
     ./configure \
         $CONFIGURE_FLAGS \
@@ -224,6 +262,14 @@ real_do_compile()
         $SYSROOT=${SDKPATH} \
 
     make -j$(get_cpu_count) && make install || exit 1
+    if [ $lib = "mp3lame" ];then
+        create_mp3lame_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
+    elif [ $lib = "freetype" ];then
+        cp ${PREFIX}/lib/pkgconfig/*.pc ${PKG_CONFIG_LIBDIR} || exit 1
+    else
+        cp ./*.pc ${PKG_CONFIG_LIBDIR} || exit 1
+    fi
+    
     cd -
 }
 #编译x264
@@ -243,14 +289,25 @@ do_compile_fdk_aac()
 #编译mp3lame
 do_compile_mp3lame()
 {
-    local CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend --with-pic"
+    local CONFIGURE_FLAGS="--enable-static --disable-shared --disable-frontend --with-pic"
     real_do_compile "$CONFIGURE_FLAGS" "mp3lame" $1
 }
 #编译ass
 do_compile_ass()
 {
+    # ass 依赖于freetype和fribidi，所以需要检查一下
+    local pkgpath=$UNI_BUILD_ROOT/build/ios-$1/pkgconfig
+    if [ ! -f $pkgpath/freetype2.pc ];then
+        echo "libass dependency freetype please set [freetype]=TRUE "
+        exit 1
+    fi
+    if [ ! -f $pkgpath/fribidi.pc ];then
+        echo "libass dependency fribidi please set [fribidi]=TRUE "
+        exit 1
+    fi
+    
     if [ ! -f $UNI_BUILD_ROOT/build/forksource/ass/configure ];then
-        local SOURCE=$UNI_BUILD_ROOT/build/forksource/ass-$FF_PC_ARCH
+        local SOURCE=$UNI_BUILD_ROOT/build/forksource/ass
         cd $SOURCE
         ./autogen.sh
         cd -

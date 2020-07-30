@@ -225,3 +225,103 @@ function rm_build()
         rm -rf build/$1/$2-$ARCH
     done
 }
+
+# 版本要和实际下载地址对应;cat > .... << EOF 代表将两个EOF之间内容输入到指定文件
+create_mp3lame_package_config() {
+    local pkg_path="$1"
+    local prefix_path="$2"
+
+    cat > "${pkg_path}/mp3lame.pc" << EOF
+prefix=${prefix_path}
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: libmp3lame
+Description: lame mp3 encoder library
+Version: 3.100
+
+Requires:
+Libs: -L\${libdir} -lmp3lame
+Cflags: -I\${includedir}
+EOF
+}
+create_zlib_system_package_config() {
+    local SDK_PATH=$1
+    local PKG_PATH=$2
+    
+    ZLIB_VERSION=$(grep '#define ZLIB_VERSION' ${SDK_PATH}/usr/include/zlib.h | grep -Eo '\".*\"' | sed -e 's/\"//g')
+
+    cat > "${PKG_PATH}/zlib.pc" << EOF
+prefix=${SDK_PATH}/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: zlib
+Description: zlib compression library
+Version: ${ZLIB_VERSION}
+
+Requires:
+Libs: -L\${libdir} -lz
+Cflags: -I\${includedir}
+EOF
+}
+create_libiconv_system_package_config() {
+    local SDK_PATH=$1
+    local PKG_PATH=$2
+    local LIB_ICONV_VERSION=$(grep '_LIBICONV_VERSION' ${SDK_PATH}/usr/include/iconv.h | grep -Eo '0x.*' | grep -Eo '.*    ')
+
+    cat > "${PKG_PATH}/libiconv.pc" << EOF
+prefix=${SDK_PATH}/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: libiconv
+Description: Character set conversion library
+Version: ${LIB_ICONV_VERSION}
+
+Requires:
+Libs: -L\${libdir} -liconv -lcharset
+Cflags: -I\${includedir}
+EOF
+}
+create_bzip2_system_package_config() {
+    local SDK_PATH=$1
+    local PKG_PATH=$2
+    BZIP2_VERSION=$(grep -Eo 'version.*of' ${SDK_PATH}/usr/include/bzlib.h | sed -e 's/of//;s/version//g;s/\ //g')
+
+    cat > "${PKG_PATH}/bzip2.pc" << EOF
+prefix=${SDK_PATH}/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: bzip2
+Description: library for lossless, block-sorting data compression
+Version: ${BZIP2_VERSION}
+
+Requires:
+Libs: -L\${libdir} -lbz2
+Cflags: -I\${includedir}
+EOF
+}
+create_libuuid_system_package_config() {
+    local SDK_PATH=$1
+    local PKG_PATH=$2
+
+    cat > "${PKG_PATH}/uuid.pc" << EOF
+prefix=${SDK_PATH}
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/usr/lib
+includedir=\${prefix}/include
+
+Name: uuid
+Description: Universally unique id library
+Version:
+Requires:
+Cflags: -I\${includedir}
+Libs: -L\${libdir}
+EOF
+}
