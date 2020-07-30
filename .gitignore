@@ -12,6 +12,7 @@
 mac-source-xcode/
 DerivedData/
 extra/
+build/
 */ios/*arm64/
 */ios/*x86_64/
 *windows/build/

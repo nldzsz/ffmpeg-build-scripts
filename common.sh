@@ -21,50 +21,39 @@
 set -e
 
 # =====自定义字典实现======== #
-# 各个源码的索引;
+# 各个源码的索引;(也为下载顺序,编译顺序)
 ffmpeg=0
 x264=1
 fdkaac=2
 mp3lame=3
-ass=4
+fribidi=4
 freetype=5
-fribidi=6
-png=7
+ass=6
 
 # 各个源码的名字
 LIBS[ffmpeg]=ffmpeg
 LIBS[x264]=x264
 LIBS[fdkaac]=fdk-aac
 LIBS[mp3lame]=mp3lame
-LIBS[ass]=ass
-LIBS[freetype]=freetype
 LIBS[fribidi]=fribidi
-LIBS[png]=png
+LIBS[freetype]=freetype
+LIBS[ass]=ass
 
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
 # ffmpeg
 All_Resources[ffmpeg]=https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n4.2
-
 # x264
 All_Resources[x264]=https://code.videolan.org/videolan/x264/-/archive/stable/x264-stable.tar.gz
-
 # fdkaac
 All_Resources[fdkaac]=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-aac/fdk-aac-2.0.0.tar.gz
-
 #mp3lame
 All_Resources[mp3lame]=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
-
-# libass
-All_Resources[ass]=https://codeload.github.com/libass/libass/tar.gz/0.14.0
-
-# freetype
-All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10.2.tar.gz
-
 # fribidi
 All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.10
-
-# png
-All_Resources[png]=https://nchc.dl.sourceforge.net/project/libpng/libpng16/1.6.37/libpng-1.6.37.tar.gz
+# freetype
+All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10.2.tar.gz
+# libass
+All_Resources[ass]=https://codeload.github.com/libass/libass/tar.gz/0.14.0
 
 # 外部库引入ffmpeg时的配置参数
 # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
@@ -74,10 +63,9 @@ LIBS_PARAM[ffmpeg]=""
 LIBS_PARAM[x264]="--enable-gpl --enable-libx264 --enable-encoder=libx264"
 LIBS_PARAM[fdkaac]="--enable-nonfree --enable-libfdk-aac --enable-encoder=libfdk_aac"
 LIBS_PARAM[mp3lame]="--enable-libmp3lame --enable-encoder=libmp3lame"
+LIBS_PARAM[fribidi]="--enable-libfribidi"
+LIBS_PARAM[freetype]="--enable-filter=drawtext --enable-libfreetype --enable-muxer=ass --enable-demuxer=ass --enable-muxer=srt --enable-demuxer=srt --enable-muxer=webvtt --enable-demuxer=webvtt --enable-encoder=ass --enable-decoder=ass --enable-encoder=srt --enable-decoder=srt --enable-encoder=webvtt --enable-decoder=webvtt"
 LIBS_PARAM[ass]="--enable-libass --enable-filter=subtitles"
-LIBS_PARAM[fribidi]="--enable-filter=drawtext --enable-libfribidi"
-LIBS_PARAM[freetype]="--enable-libfreetype"
-LIBS_PARAM[png]=""
 export LIBS_PARAM
 
 # =====自定义字典实现======== #
@@ -92,6 +80,15 @@ fi
 
 # 公用工具脚本路径
 TOOLS=tools
+
+get_cpu_count() {
+    if [ "$(uname)" == "Darwin" ]; then
+        echo $(sysctl -n hw.physicalcpu)
+    else
+        echo $(nproc)
+    fi
+}
+
 # 获取git库的当前分支名
 function obtain_git_branch {
   br=`git branch | grep "*"`
@@ -101,12 +98,13 @@ function obtain_git_branch {
 # 检查编译环境是否具备
 function check_build_env
 {
-    echo "== check build env ! =="
+    echo -e "== check build env ! =="
     # 检查编译环境，比如是否安装 brew yasm gas-preprocessor.pl等等;
     # sh $TOOLS/check-build-env.sh 代表重新开辟一个新shell，是两个不同的shell进程了，互相独立，如果出错，不影响本shell
     #  . $TOOLS/check-build-env.sh 代表在本shell中执行该脚本，全局变量可以共享，如果出错，本shell也会退出。
     . $TOOLS/check-build-env.sh
     echo -e "check build env success ok! ======="
+    echo -e ""
 }
 
 # wget命令下载源码
@@ -154,20 +152,19 @@ function fork_from_git() {
 }
 
 # 从本地copy源码
-# $1 代表平台 armv5 arm64...
-# $2 代表库的名称 ffmpeg x264
-# $3 代表操作系统平台 ios/windows/linux/android
+# $1 代表库的名称 ffmpeg x264
 function copy_from_local() {
-    echo "== copy $3 $2 fork $1 =="
+    
     # 平台对应的forksource目录下存在对应的源码目录，则默认已经有代码了，不拷贝了；如果要重新拷贝，先手动删除forksources下对应的源码
-    if [ -d $3/forksource/$2-$1 ]; then
-        echo "== copy $3 $2 fork $1 == has exist return"
+    if [ -d build/forksource/$1 ]; then
+#        echo "== copy $3 $2 fork $1 == has exist return"
         return
     fi
-   
-    mkdir -p $3/forksource
+    
+    echo "== copy fork $1 =="
+    mkdir -p build/forksource
     # -rf 拷贝指定目录及其所有的子目录下文件
-    cp -rf extra/$2 $3/forksource/$2-$1
+    cp -rf extra/$1 build/forksource/$1
 }
 
 # ---- 供外部调用，检查编译环境和获取所有用于编译的源码 ------
@@ -181,65 +178,50 @@ function prepare_all() {
     wget_down_lib_sources_ifneeded
     
     # 代表从第一个参数之后开始的所有参数
-    for ARCH in ${*:2}
+    for lib in $(echo ${!All_Resources[*]})
     do
-        for lib in $(echo ${!All_Resources[*]})
-        do
-            if [[ -d extra/${LIBS[$lib]} ]] && [[ ${LIBFLAGS[$lib]} = "TRUE" ]];then
-                if [ ${LIBS[$lib]} = "ffmpeg" ] && [ $INTERNAL_DEBUG = "TRUE" ];then
-                    # ffmpeg用内部自己研究的代码
-                    echo "== copy $1 ffmpeg fork $ARCH =="
-                    
-                    if [ ! -d $1/forksource/ffmpeg-$ARCH ];then
-                        mkdir -p $1/forksource/ffmpeg-$ARCH
-                        cp -rf /Users/apple/devoloper/mine/ffmpeg/ffmpeg-source/ $1/forksource/ffmpeg-$ARCH
-                    else
-                        echo "== copy $1 ffmpeg fork $ARCH == has exist return"
-                    fi
-                    
-                    continue
+        if [[ -d extra/${LIBS[$lib]} ]] && [[ ${LIBFLAGS[$lib]} = "TRUE" ]];then
+            if [ ${LIBS[$lib]} = "ffmpeg" ] && [ $INTERNAL_DEBUG = "TRUE" ];then
+                # ffmpeg用内部自己研究的代码
+                if [ ! -d $1/forksource/ffmpeg-$ARCH ];then
+                    echo "== copy fork ffmpeg =="
+                    mkdir -p build/forksource/ffmpeg
+                    cp -rf /Users/apple/devoloper/mine/ffmpeg/ffmpeg-source/ build/forksource/ffmpeg
                 fi
                 
-                # 正常拷贝库
-                copy_from_local $ARCH ${LIBS[$lib]} $1
-                
+                continue
             fi
-        done
+            
+            # 正常拷贝库
+            copy_from_local ${LIBS[$lib]}
+            
+        fi
     done
 }
 
 function rm_extra_source()
 {
-    echo "....rm extra source begin...."
+    echo "....rm extra source...."
     rm -rf extra
-    echo "....rm extra source finish...."
 }
 
 function rm_all_fork_source()
 {
-    echo "....rm $1 forksource $2 source begin...."
-    rm -rf $1/forksource
-    echo "....rm $1 forksource $2 source finish...."
-    
+    echo "....rm $1 forksource $2...."
+    rm -rf build/forksource
 }
 
 function rm_fork_source()
 {
-    for ARCH in ${*:3}
-    do
-        echo "....rm $1 forksource $2 $3 source begin...."
-        rm -rf $1/forksource/$2-$3
-        echo "....rm $1 forksource $2 $3 source finish...."
-    done
-    
+    echo "....rm forksource $1...."
+    rm -rf build/forksource/$1
 }
 
 function rm_build()
 {
     for ARCH in ${*:3}
     do
-        echo "....rm $1 forksource $2 $3 build begin...."
-        rm -rf $1/build/$2-$3
-        echo "....rm $1 forksource $2 build finish...."
+        echo "....rm $1 build $2 $ARCH...."
+        rm -rf build/$1/$2-$ARCH
     done
 }

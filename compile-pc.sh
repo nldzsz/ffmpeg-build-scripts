@@ -25,7 +25,7 @@ export FF_PC_ARCH="x86_64"
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [ass]=TRUE [fribidi]=TRUE [freetype]=TRUE [png]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [ass]=TRUE [fribidi]=TRUE [freetype]=TRUE
 )
 
 # 内部调试用
@@ -109,13 +109,13 @@ do-compile-ass()
         cd -
     fi
     
-    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-coretext --disable-require-system-font-provider --disable-profile "
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
     real-do-compile "$CONFIGURE_FLAGS" "ass"
 }
 #编译freetype
 do-compile-freetype()
 {
-    CONFIGURE_FLAGS="--with-pic --with-zlib --with-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --enable-shared "
+    CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --enable-shared "
     real-do-compile "$CONFIGURE_FLAGS" "freetype"
 }
 #编译fribidi
@@ -239,9 +239,9 @@ do-compile-ffmpeg()
 	echo "--------------------"
 	echo "[*] configurate ffmpeg"
 	echo "--------------------"
-	echo "FF_CFG_FLAGS=$FF_CFG_FLAGS \n"
-	echo "--extra-cflags=$FF_EXTRA_CFLAGS \n"
-	echo "--extra-ldflags=$FF_EXTRA_LDFLAGS \n"
+	echo "FF_CFG_FLAGS=$FF_CFG_FLAGS"
+	echo "--extra-cflags=$FF_EXTRA_CFLAGS"
+	echo "--extra-ldflags=$FF_EXTRA_LDFLAGS"
 
 	cd $FF_SOURCE
     ./configure $FF_CFG_FLAGS \
