@@ -443,7 +443,7 @@ do_lipo_lib () {
 do_lipo_all () {
     
     # for external lib
-    for(( i=1;i<${#LIBS[@]};i++))
+    for(( i=$x264;i<${#LIBS[@]};i++))
     do
         lib=${LIBS[i]};
         uni_lib_dir=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib
@@ -488,7 +488,7 @@ do_lipo_all () {
     done
     
     # copy external to ffmpeg universal dir
-    for(( i=1;i<${#LIBS[@]};i++))
+    for(( i=$x264;i<${#LIBS[@]};i++))
     do
         lib=${LIBS[i]};
         
@@ -512,8 +512,8 @@ if [ -z "$FF_TARGET" ]; then
         # 编译外部库，已经编译过则跳过。如果要重新编译，删除build下的外部库
         compile_external_lib_ifneed $ARCH
         # 编译ffmpeg
-#        rm -rf ios/build/ios-$ARCH/ffmpeg
-#        do_compile_ffmpeg $ARCH
+        rm -rf ios/build/ios-$ARCH/ffmpeg
+        do_compile_ffmpeg $ARCH
     done
     
     # 合并库

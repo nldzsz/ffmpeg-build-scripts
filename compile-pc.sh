@@ -144,14 +144,15 @@ do-compile-png()
 # 编译外部库
 compile_external_lib_ifneed()
 {
-    for lib in $(echo ${!LIBFLAGS[*]})
+    for (( i=$x264;i<${#LIBS[@]};i++ ))
     do
-        FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/${LIBS[$lib]}/lib
+        lib=${LIBS[i]}
+        FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/lib
         
-        if [[ ${LIBFLAGS[$lib]} == "TRUE" ]] && [[ ${LIBS[$lib]} != "ffmpeg" ]]; then
-            if [[ ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.a" && ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.dll.a" && ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.so" ]] ; then
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            if [[ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" && ! -f "${FFMPEG_DEP_LIB}/lib$lib.dll.a" && ! -f "${FFMPEG_DEP_LIB}/lib$lib.so" ]] ; then
                 # 编译
-                do-compile-${LIBS[$lib]}
+                do-compile-$lib
             fi
         fi
     done;
@@ -189,7 +190,7 @@ do-compile-ffmpeg()
 	# 开始编译
 	# 导入ffmpeg 的配置
 	export COMMON_FF_CFG_FLAGS=
-		. $FF_BUILD_ROOT/../config/module.sh
+		. $FF_BUILD_ROOT/config/module.sh
 	
     #硬编解码，不同平台配置参数不一样
     if [ $ENABLE_GPU = "TRUE" ] && [ $FF_PC_TARGET = "mac" ];then
@@ -202,7 +203,7 @@ do-compile-ffmpeg()
 	#导入ffmpeg的外部库，这里指定外部库的路径，配置参数则转移到了config/module.sh中
 	EXT_ALL_LIBS=
 	#${#array[@]}获取数组长度用于循环
-	for(( i=1;i<${#LIBS[@]};i++))
+	for(( i=$x264;i<${#LIBS[@]};i++))
 	do
 		lib=${LIBS[i]};
 		lib_inc_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/include
