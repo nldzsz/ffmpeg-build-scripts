@@ -28,19 +28,18 @@ target_ios=10.0
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
 )
 
 # 内部调试用
 export INTERNAL_DEBUG=FALSE
-#----------
+# 开启硬编解码
+ENABLE_GPU=TRUE
+
 UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1
-
-
 #----------
-
-# 配置教程编译环境
+# 配置交叉编译环境
 set_toolchain_path()
 {
     local ARCH=$1
@@ -87,93 +86,9 @@ set_toolchain_path()
         create_libuuid_system_package_config $SDKPATH $PKG_CONFIG_LIBDIR
     fi
 }
-
-ffmpeg_uni_output_dir=$UNI_BUILD_ROOT/build/ffmpeg-a1universal
-if [ $INTERNAL_DEBUG = "TRUE" ];then
-    ffmpeg_uni_output_dir=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-ios/ffmpeglib
-fi
-do_lipo_lib () {
-    
-    # 将ffmpeg的各个模块生成的库以及引用的外部库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
-    LIB_FILE=$1.a
-    LIPO_FLAGS=
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/lib/$LIB_FILE"
-        if [ -f "$ARCH_LIB_FILE" ]; then
-            LIPO_FLAGS="$LIPO_FLAGS $ARCH_LIB_FILE"
-        else
-            echo "skip $LIB_FILE of $ARCH";
-        fi
-    done
-    
-    ffmpeg_output_dir=$ffmpeg_uni_output_dir/lib/$LIB_FILE
-    xcrun lipo -create $LIPO_FLAGS -output $ffmpeg_output_dir
-    xcrun lipo -info $ffmpeg_output_dir
-}
-
-FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
-do_lipo_all () {
-    mkdir -p $ffmpeg_uni_output_dir/lib
-    mkdir -p $UNI_BUILD_ROOT/build/ffmpeg-a1universal
-    echo ""
-    echo "lipo archs: $FF_ALL_ARCHS_IOS"
-    
-    # 合并ffmpeg库各个模块的不同平台库
-    for LIB in $FF_FFMPEG_LIBS
-    do
-        do_lipo_lib $LIB
-    done
-    
-    # 合并ffmpeg库引用的第三方库的各个平台的库;${#array[@]}获取数组长度用于循环
-    for(( i=0;i<${#LIBS[@]};i++))
-    do
-        lib=${LIBS[i]};
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            do_lipo_lib lib"$lib";
-        fi
-    done;
-    
-    # 拷贝ffmpeg头文件
-    ANY_ARCH=
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        ARCH_INC_DIR="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/include"
-        if [ -d "$ARCH_INC_DIR" ]; then
-            if [ -z "$ANY_ARCH" ]; then
-                ANY_ARCH=$ARCH
-                cp -R "$ARCH_INC_DIR" "$UNI_BUILD_ROOT/build/ffmpeg-a1universal/include"
-            fi
-
-            UNI_INC_DIR="$UNI_BUILD_ROOT/build/ffmpeg-a1universal/include"
-
-            mkdir -p "$UNI_INC_DIR/libavutil/$ARCH"
-            cp -f "$ARCH_INC_DIR/libavutil/avconfig.h"  "$UNI_INC_DIR/libavutil/$ARCH/avconfig.h"
-            cp -f ios/avconfig.h                      "$UNI_INC_DIR/libavutil/avconfig.h"
-            cp -f "$ARCH_INC_DIR/libavutil/ffversion.h" "$UNI_INC_DIR/libavutil/$ARCH/ffversion.h"
-            cp -f ios/ffversion.h                     "$UNI_INC_DIR/libavutil/ffversion.h"
-            # 引用 ijkplayer 暂时不知道撒用 先屏蔽
-            # mkdir -p "$UNI_INC_DIR/libffmpeg/$ARCH"
-            # cp -f "$ARCH_INC_DIR/libffmpeg/config.h"    "$UNI_INC_DIR/libffmpeg/$ARCH/config.h"
-            # cp -f tools/config.h                        "$UNI_INC_DIR/libffmpeg/config.h"
-        fi
-    done
-}
-real_do_compile()
+set_flags()
 {
-    local CONFIGURE_FLAGS=$1
-    local lib=$2
-    local ARCH=$3
-    local SOURCE=$UNI_BUILD_ROOT/build/forksource/$lib
-    local PREFIX=$UNI_BUILD_ROOT/build/ios-$ARCH/$lib
-    cd $SOURCE
-    
-    echo ""
-    echo "build $lib $ARCH ......."
-    echo "CONFIGURE_FLAGS:$CONFIGURE_FLAGS"
-    echo "prefix:$PREFIX"
-    echo ""
-    
+    ARCH=$1
     # 用来配置编译器参数，一般包括如下几个部分：
     # 1、平台cpu架构相关的参数，比如arm64、x86_64不同cpu架构相关的参数也不一样，一般是固定的
     # 2、编译器相关参数，比如std=c99，不同的库所使用的语言以及语言的版本等等
@@ -221,7 +136,7 @@ real_do_compile()
     # 8、PKG_CONFIG_PATH/PKG_CONFIG_LIBDIR;指定pkg-config工具所需要的.pc文件的搜索路径(备注：一般通过Autoconf生成的脚本都会根据此参数自动引入pkg-config)
     #
     # 备注：x264 ffmpeg等非Autoconf生成的configure配置脚本以及编译器参数，可能有些不同;CFLAGS可能不同的库有些一不一样
-    local SYSROOT="--with-sysroot"
+    SYS_ROOT_CONF="--with-sysroot"
     GAS_PL="gas-preprocessor.pl"
     if [ $lib = "x264" ];then
         SYSROOT="--sysroot"
@@ -250,6 +165,25 @@ real_do_compile()
     export CFLAGS
     export CXXFLAGS
     export LDFLAGS
+    export SYS_ROOT_CONF
+}
+
+real_do_compile()
+{
+    local CONFIGURE_FLAGS=$1
+    local lib=$2
+    local ARCH=$3
+    local SOURCE=$UNI_BUILD_ROOT/build/forksource/$lib
+    local PREFIX=$UNI_BUILD_ROOT/build/ios-$ARCH/$lib
+    cd $SOURCE
+    
+    echo ""
+    echo "build $lib $ARCH ......."
+    echo "CONFIGURE_FLAGS:$CONFIGURE_FLAGS"
+    echo "prefix:$PREFIX"
+    echo ""
+    
+    set_flags $ARCH
     
     set +e
     make distclean
@@ -259,7 +193,7 @@ real_do_compile()
         $CONFIGURE_FLAGS \
         --host=$HOST \
         --prefix=$PREFIX \
-        $SYSROOT=${SDKPATH} \
+        $SYS_ROOT_CONF=${SDKPATH} \
 
     make -j$(get_cpu_count) && make install || exit 1
     if [ $lib = "mp3lame" ];then
@@ -342,8 +276,9 @@ do_compile_ffmpeg()
         return
     fi
     
-    FF_BUILD_NAME=ffmpeg
-    FF_BUILD_ROOT=`pwd`/$FF_PC_TARGET
+    local FF_BUILD_NAME=ffmpeg
+    local FF_BUILD_ROOT=`pwd`
+    local FF_ARCH=$1
 
     # 对于每一个库，他们的./configure 他们的配置参数以及关于交叉编译的配置参数可能不一样，具体参考它的./configure文件
     # 用于./configure 的参数
@@ -356,21 +291,57 @@ do_compile_ffmpeg()
     # 用于./configure 关于--extra-ldflags 的参数
     # 1、指定引用三方库的路径及库名称 比如-L<x264_path> -lx264
     FF_EXTRA_LDFLAGS=
-    
-    FF_SOURCE=$FF_BUILD_ROOT/forksource/$FF_BUILD_NAME-$FF_PC_ARCH
-    FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME-$FF_PC_ARCH
-    if [ $INTERNAL_DEBUG = "TRUE" ];then
-        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
-    fi
-    mkdir -p $FF_PREFIX
-
     # 开始编译
     # 导入ffmpeg 的配置
     export COMMON_FF_CFG_FLAGS=
-        . $FF_BUILD_ROOT/../config/module.sh
+    . $FF_BUILD_ROOT/config/module.sh
+    
+    COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-cross-compile --enable-pic --enable-static --disable-shared --target-os=darwin"
+    
+    FF_SOURCE=$FF_BUILD_ROOT/build/forksource/$FF_BUILD_NAME
+    FF_PREFIX=$FF_BUILD_ROOT/build/ios-$FF_ARCH/$FF_BUILD_NAME
+    if [ $INTERNAL_DEBUG = "TRUE" ];then
+        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
+        COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --disable-optimizations --enable-debug --disable-small";
+    else
+        COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-optimizations --disable-debug --enable-small"
+    fi
+    mkdir -p $FF_PREFIX
+
+    set_flags $FF_ARCH
+    
+    local FF_CFLAGS=
+    local NEON_FLAG=
+    local TARGET_ARCH=
+    local TARGET_CPU=
+    local ARCH_OPTIONS=
+    if [ "$FF_ARCH" = "x86_64" ]; then
+        NEON_FLAG=" --disable-neon"
+        TARGET_CPU="x86_64"
+        TARGET_CPU="armv8"
+        ARCH_OPTIONS="--disable-asm"
+    elif [ "$FF_ARCH" = "arm64" ]; then
+        NEON_FLAG=" --enable-neon"
+        TARGET_ARCH="aarch64"
+        TARGET_CPU="armv8"
+        ARCH_OPTIONS="--enable-asm"
+        FF_CFLAGS="-Wc,-fembed-bitcode"
+        FF_GASPP_EXPORT="GASPP_FIX_XCODE5=1"
+    elif [ "$FF_ARCH" = "arm64e" ]; then
+        NEON_FLAG=" --enable-neon"
+        TARGET_ARCH="aarch64"
+        TARGET_CPU="armv8.3-a"
+        ARCH_OPTIONS="--enable-asm"
+        FF_CFLAGS="-Wc,-fembed-bitcode"
+        FF_GASPP_EXPORT="GASPP_FIX_XCODE5=1"
+    else
+        echo "unknown architecture $FF_ARCH";
+        exit 1
+    fi
+    export CFLAGS="$CFLAGS $FF_CFLAGS"
     
     #硬编解码，不同平台配置参数不一样
-    if [ $ENABLE_GPU = "TRUE" ] && [ $FF_PC_TARGET = "mac" ];then
+    if [ $ENABLE_GPU = "TRUE" ];then
         # 开启Mac/IOS的videotoolbox GPU编码
         export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
         # 开启Mac/IOS的videotoolbox GPU解码
@@ -380,73 +351,44 @@ do_compile_ffmpeg()
     #导入ffmpeg的外部库，这里指定外部库的路径，配置参数则转移到了config/module.sh中
     EXT_ALL_LIBS=
     #${#array[@]}获取数组长度用于循环
-    for(( i=1;i<${#LIBS[@]};i++))
+    for(( i=$x264;i<${#LIBS_PKGS[@]};i++))
     do
-        lib=${LIBS[i]};
-        lib_name=$lib-$FF_PC_ARCH
-        lib_inc_dir=$FF_BUILD_ROOT/build/$lib_name/include
-        lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
+        lib_pkg=${LIBS_PKGS[i]};
         if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
 
             COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 
-            FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -I${lib_inc_dir}"
-            FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS -L${lib_lib_dir}"
-        
-            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib.a"
+            FF_EXTRA_CFLAGS+=" $(pkg-config --cflags $lib_pkg)"
+            FF_EXTRA_LDFLAGS+=" $(pkg-config --libs --static $lib_pkg)"
         fi
     done
-
-    FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
-
-    # 进行裁剪
-    FF_CFG_FLAGS="$FF_CFG_FLAGS";
-    if [ $ENABLE_FFMPEG_TOOLS="TRUE" ];then
-        FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-ffmpeg --enable-ffplay --enable-ffprobe";
-    fi
-    
-    # 开启调试;如果关闭 则注释即可
-    #FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-debug --disable-optimizations";
-    #--------------------
-    
-    if [ $FF_PC_TARGET = "mac" ];then
-        # 当执行过一次./configure 会在源码根目录生成config.h文件
-        # which 是根据使用者所配置的 PATH 变量内的目录去搜寻可执行文件路径，并且输出该路径
-        # fixbug:mac osX 10.15.4 (19E266)和Version 11.4 (11E146)生成的库在调用libx264编码的avcodec_open2()函数
-        # 时奔溃(报错stack_not_16_byte_aligned_error)，添加编译参数--disable-optimizations解决问题(fix：2020.5.2)
-        FF_CFG_FLAGS="$FF_CFG_FLAGS --enable-ffmpeg --enable-ffplay --disable-optimizations";
-    fi
     
     echo ""
-    echo "--------------------"
-    echo "[*] configurate ffmpeg"
-    echo "--------------------"
-    echo "FF_CFG_FLAGS=$FF_CFG_FLAGS"
-    echo "--extra-cflags=$FF_EXTRA_CFLAGS"
-    echo "--extra-ldflags=$FF_EXTRA_LDFLAGS"
-
+    echo "build ffmpeg $FF_ARCH........"
+    echo "FF_CFG_FLAGS $COMMON_FF_CFG_FLAGS"
+    
     cd $FF_SOURCE
-    ./configure $FF_CFG_FLAGS \
-        --prefix=$FF_PREFIX \
+    set +e
+    make distclean
+    set -e
+    ./configure $COMMON_FF_CFG_FLAGS \
+        --sysroot=${SDKPATH} \
+        --prefix=${FF_PREFIX} \
+        --arch="${TARGET_ARCH}" \
+        --cpu="${TARGET_CPU}" \
+        --ar="${AR}" \
+        --cc="${CC}" \
+        --cxx="${CXX}" \
+        --as="${AS}" \
+        --ranlib="${RANLIB}" \
+        --strip="${STRIP}" \
         --extra-cflags="$FF_EXTRA_CFLAGS" \
+        --extra-cxxflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
-    
+        ${NEON_FLAG} \
+        ${ARCH_OPTIONS} \
 
-    #------- 编译和连接 -------------
-    #生成各个模块对应的静态或者动态库(取决于前面是生成静态还是动态库)
-    echo ""
-    echo "--------------------"
-    echo "[*] compile ffmpeg"
-    echo "--------------------"
-    cp config.* $FF_PREFIX
-    make && make install
-    mkdir -p $FF_PREFIX/include/libffmpeg
-    cp -f config.h $FF_PREFIX/include/libffmpeg/config.h
-    # 拷贝外部库
-    for lib in $EXT_ALL_LIBS
-    do
-        cp -f $lib $FF_PREFIX/lib
-    done
+    make -j$(get_cpu_count) && make install || exit 1
     cd -
 }
 
@@ -477,52 +419,114 @@ function compile_external_lib_ifneed()
     done;
 }
 
+
+do_lipo_lib () {
+    
+    # 将ffmpeg的各个模块生成的库以及引用的外部库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
+    LIB_FILE=$1.a
+    LIPO_FLAGS=
+    for ARCH in $FF_ALL_ARCHS_IOS
+    do
+        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/lib/$LIB_FILE"
+        if [ -f "$ARCH_LIB_FILE" ]; then
+            LIPO_FLAGS="$LIPO_FLAGS $ARCH_LIB_FILE"
+        else
+            echo "skip $LIB_FILE of $ARCH";
+        fi
+    done
+    
+    ffmpeg_output_dir=$ffmpeg_uni_output_dir/lib/$LIB_FILE
+    xcrun lipo -create $LIPO_FLAGS -output $ffmpeg_output_dir
+    xcrun lipo -info $ffmpeg_output_dir
+}
+
+do_lipo_all () {
+    
+    # for external lib
+    for(( i=1;i<${#LIBS[@]};i++))
+    do
+        lib=${LIBS[i]};
+        uni_lib_dir=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib
+        uni_inc_dir=$UNI_BUILD_ROOT/build/ios-universal/$lib/include
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            mkdir -p $uni_lib_dir
+            mkdir -p $uni_inc_dir
+            cp -rf $UNI_BUILD_ROOT/build/ios-arm64/$lib/include $uni_inc_dir
+        fi
+        ARCH_LIB_FILE=
+        for ARCH in $FF_ALL_ARCHS_IOS
+        do
+            ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/lib$lib.a "
+        done
+
+        xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/lib$lib.a
+        xcrun lipo -info $uni_lib_dir/lib$lib.a
+    done
+
+    # for ffmpeg
+    local FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
+    if [[ ${LIBFLAGS[$ffmpeg]} = "FALSE" ]]; then
+        echo "set [ffmpeg]=TRUE first"
+        exit 1
+    fi
+    uni_inc_dir=$UNI_BUILD_ROOT/build/ios-universal/ffmpeg
+    uni_lib_dir=$UNI_BUILD_ROOT/build/ios-universal/ffmpeg/lib
+    mkdir -p $uni_inc_dir
+    mkdir -p $uni_lib_dir
+    cp -rf $UNI_BUILD_ROOT/build/ios-arm64/ffmpeg/include $uni_inc_dir
+
+
+    for lib in $FF_FFMPEG_LIBS
+    do
+        ARCH_LIB_FILE=
+        for ARCH in $FF_ALL_ARCHS_IOS
+        do
+            ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/ffmpeg/lib/$lib.a "
+        done
+        xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/$lib.a
+        xcrun lipo -info $uni_lib_dir/$lib.a
+    done
+    
+    # copy external to ffmpeg universal dir
+    for(( i=1;i<${#LIBS[@]};i++))
+    do
+        lib=${LIBS[i]};
+        
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+            uni_lib_dir1=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib/lib$lib.a
+            cp -r $uni_lib_dir1 $uni_lib_dir
+        fi
+    done
+}
+
 # 命令开始执行处----------
-if [ "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64" -o "$FF_TARGET" = "all" ]; then
+if [ -z "$FF_TARGET" ]; then
     
     # 检查编译环境以及根据情况是否需要拉取源码
     prepare_all ios $FF_ALL_ARCHS_IOS
     
-    # 删除ffmpeg库目录
-    rm -rf ios/build/ffmpeg-*
-
-    if [ "$FF_TARGET" != "all" ];then
+    for ARCH in $FF_ALL_ARCHS_IOS
+    do
         # 设置编译环境
-        set_toolchain_path $FF_TARGET
-        # 编译库，已经编译过则跳过。如果要重新编译，删除build下的外部库
-        compile_external_lib_ifneed $FF_TARGET
-    else
-        
-        for ARCH in $FF_ALL_ARCHS_IOS
-        do
-            # 设置编译环境
-            set_toolchain_path $ARCH
-            # 编译外部库，已经编译过则跳过。如果要重新编译，删除build下的外部库
-            compile_external_lib_ifneed $ARCH
-            # 编译ffmpeg
-            #    do-compile-ffmpeg
-        done
-    fi
+        set_toolchain_path $ARCH
+        # 编译外部库，已经编译过则跳过。如果要重新编译，删除build下的外部库
+        compile_external_lib_ifneed $ARCH
+        # 编译ffmpeg
+#        rm -rf ios/build/ios-$ARCH/ffmpeg
+#        do_compile_ffmpeg $ARCH
+    done
     
-#    # 合并库
-#    do_lipo_all
-elif [ "$FF_TARGET" == "reset" ]; then
-    
-    rm -rf ios/build
-    rm_extra_source
-    rm_fork_source $FF_PC_TARGET
-
-elif [[ "$FF_TARGET" == clean* ]]; then
+    # 合并库
+    do_lipo_all
+elif [[ "$FF_TARGET" == clean-* ]]; then
     
     # 清除对应库forksource下的源码目录和build目录
-    name=${FF_TARGET#clean*}
+    name=${FF_TARGET#clean-*}
     rm_fork_source $name
     rm_build ios $name $FF_ALL_ARCHS_IOS
-else
+elif [ "$FF_TARGET" == "--help" ]; then
     echo "Usage:"
-    echo "  compile-ffmpeg.sh arm64|x86_64"
-    echo "  compile-ffmpeg.sh all"
-    echo "  compile-ffmpeg.sh clean|clean*  (default clean ffmpeg,cleanx264 will clean x264)"
-    echo "  compile-ffmpeg.sh reset"
+    echo "  compile-ios.sh"
+    echo "  compile-ios.sh clean-all|clean-*  (default clean ffmpeg,clean-x264 will clean x264)"
     exit 1
 fi

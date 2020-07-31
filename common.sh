@@ -39,6 +39,15 @@ LIBS[fribidi]=fribidi
 LIBS[freetype]=freetype
 LIBS[ass]=ass
 
+# 各个源码对应的pkg-config中.pc的名字
+LIBS_PKGS[ffmpeg]=ffmpeg
+LIBS_PKGS[x264]=x264
+LIBS_PKGS[fdkaac]=fdk-aac
+LIBS_PKGS[mp3lame]=mp3lame
+LIBS_PKGS[fribidi]=fribidi
+LIBS_PKGS[freetype]=freetype2
+LIBS_PKGS[ass]=libass
+
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
 # ffmpeg
 All_Resources[ffmpeg]=https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n4.2
