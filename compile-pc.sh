@@ -18,14 +18,14 @@
 
 #----------
 set -e
-. ./compile-init.sh
+. ./common.sh
 
 #当前Linux/Windows/Mac操作系统的位数，如果是64位则填写x86_64，32位则填写x86
 export FF_PC_ARCH="x86_64"
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [ass]=TRUE [fribidi]=TRUE [freetype]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
 )
 
 # 内部调试用
@@ -55,8 +55,8 @@ real-do-compile()
 {	
 	CONFIGURE_FLAGS=$1
 	lib=$2
-	SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/$lib-$FF_PC_ARCH
-	PREFIX=$UNI_BUILD_ROOT/$FF_PC_TARGET/build/$lib-$FF_PC_ARCH
+	SOURCE=$UNI_BUILD_ROOT/build/forksource/$lib
+	PREFIX=$UNI_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib
 	cd $SOURCE
 	
 	echo ""
@@ -64,12 +64,16 @@ real-do-compile()
 	echo "CONFIGURE_FLAGS:$CONFIGURE_FLAGS"
 	echo "prefix:$PREFIX"
 	echo ""
-
+    
+    set +e
+    make distclean
+    set -e
+    
 	./configure \
 	${CONFIGURE_FLAGS} \
 	--prefix=$PREFIX 
 
-	make && make install
+	make -j$(get_cpu_count) && make install || exit 1
 	
 	cd -
 }
@@ -93,7 +97,7 @@ do-compile-mp3lame()
 	#遇到问题：mp3lame连接时提示"export lame_init_old: symbol not defined"
 	#分析原因：未找到这个函数的实现
 	#解决方案：删除libmp3lame.sym中的lame_init_old
-	SOURCE=./$FF_PC_TARGET/forksource/mp3lame-$FF_PC_ARCH/include/libmp3lame.sym
+	SOURCE=./build/forksource/mp3lame/include/libmp3lame.sym
 	$OUR_SED "/lame_init_old/d" $SOURCE
 	
 	CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend "
@@ -102,8 +106,8 @@ do-compile-mp3lame()
 #编译ass
 do-compile-ass()
 {
-    if [ ! -f $UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/ass-$FF_PC_ARCH/configure ];then
-        SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/ass-$FF_PC_ARCH
+    if [ ! -f $UNI_BUILD_ROOT/build/forksource/ass/configure ];then
+        SOURCE=$UNI_BUILD_ROOT/build/forksource/ass
         cd $SOURCE
         ./autogen.sh
         cd -
@@ -121,8 +125,8 @@ do-compile-freetype()
 #编译fribidi
 do-compile-fribidi()
 {
-    if [ ! -f $UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/fribidi-$FF_PC_ARCH/configure ];then
-        SOURCE=$UNI_BUILD_ROOT/$FF_PC_TARGET/forksource/fribidi-$FF_PC_ARCH
+    if [ ! -f $UNI_BUILD_ROOT/build/forksource/fribidi/configure ];then
+        SOURCE=$UNI_BUILD_ROOT/build/forksource/fribidi
         cd $SOURCE
         ./autogen.sh
         cd -
@@ -142,7 +146,7 @@ compile_external_lib_ifneed()
 {
     for lib in $(echo ${!LIBFLAGS[*]})
     do
-        FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/$FF_PC_TARGET/build/${LIBS[$lib]}-$FF_PC_ARCH/lib
+        FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/${LIBS[$lib]}/lib
         
         if [[ ${LIBFLAGS[$lib]} == "TRUE" ]] && [[ ${LIBS[$lib]} != "ffmpeg" ]]; then
             if [[ ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.a" && ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.dll.a" && ! -f "${FFMPEG_DEP_LIB}/lib${LIBS[$lib]}.so" ]] ; then
@@ -161,7 +165,7 @@ do-compile-ffmpeg()
     fi
     
 	FF_BUILD_NAME=ffmpeg
-	FF_BUILD_ROOT=`pwd`/$FF_PC_TARGET
+	FF_BUILD_ROOT=`pwd`
 
 	# 对于每一个库，他们的./configure 他们的配置参数以及关于交叉编译的配置参数可能不一样，具体参考它的./configure文件
 	# 用于./configure 的参数
@@ -175,8 +179,8 @@ do-compile-ffmpeg()
 	# 1、指定引用三方库的路径及库名称 比如-L<x264_path> -lx264
 	FF_EXTRA_LDFLAGS=
 	
-	FF_SOURCE=$FF_BUILD_ROOT/forksource/$FF_BUILD_NAME-$FF_PC_ARCH
-	FF_PREFIX=$FF_BUILD_ROOT/build/$FF_BUILD_NAME-$FF_PC_ARCH
+	FF_SOURCE=$FF_BUILD_ROOT/build/forksource/$FF_BUILD_NAME
+	FF_PREFIX=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$FF_BUILD_NAME
     if [ $INTERNAL_DEBUG = "TRUE" ];then
         FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
     fi
@@ -201,9 +205,8 @@ do-compile-ffmpeg()
 	for(( i=1;i<${#LIBS[@]};i++))
 	do
 		lib=${LIBS[i]};
-		lib_name=$lib-$FF_PC_ARCH
-		lib_inc_dir=$FF_BUILD_ROOT/build/$lib_name/include
-		lib_lib_dir=$FF_BUILD_ROOT/build/$lib_name/lib
+		lib_inc_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/include
+		lib_lib_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/lib
 		if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
 
 			COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
@@ -244,6 +247,9 @@ do-compile-ffmpeg()
 	echo "--extra-ldflags=$FF_EXTRA_LDFLAGS"
 
 	cd $FF_SOURCE
+    set +e
+    make distclean
+    set -e
     ./configure $FF_CFG_FLAGS \
         --prefix=$FF_PREFIX \
         --extra-cflags="$FF_EXTRA_CFLAGS" \
@@ -272,8 +278,7 @@ useage()
 {
     echo "Usage:"
     echo "  compile-ffmpeg-pc.sh mac|windows|linux"
-    echo "  compile-ffmpeg-pc.sh mac|windows|linux clean|clean*  (default clean ffmpeg,cleanx264 will clean x264)"
-    echo "  compile-ffmpeg-pc.sh mac|windows|linux reset"
+    echo "  compile-ffmpeg-pc.sh mac|windows|linux clean-all|clean-*  (default clean ffmpeg,clean-x264 will clean x264)"
     exit 1
 }
 
@@ -293,14 +298,9 @@ fi
 #=== sh脚本执行开始 ==== #
 # $FF_PC_ACTION 表示脚本执行时输入的第一个参数
 case "$FF_PC_ACTION" in
-    reset)
-        rm_extra_source
-        rm_all_fork_source $FF_PC_TARGET
-        rm -rf $FF_PC_TARGET/build
-    ;;
-    clean*)
+    clean-*)
         # 清除对应库forksource下的源码目录和build目录
-        name=${FF_PC_ACTION#clean*}
+        name=${FF_PC_ACTION#clean-*}
         rm_fork_source $FF_PC_TARGET $name $FF_PC_ARCH
         rm_build $FF_PC_TARGET $name $FF_PC_ARCH
             
@@ -313,7 +313,7 @@ case "$FF_PC_ACTION" in
     *)
         prepare_all $FF_PC_TARGET $FF_PC_ARCH
         
-        rm -rf $FF_PC_TARGET/build/ffmpeg-*
+        rm -rf build/$FF_PC_TARGET-$FF_PC_ARCH/ffmpeg
         
         # 先编译外部库
         compile_external_lib_ifneed

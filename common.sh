@@ -192,7 +192,7 @@ function prepare_all() {
         if [[ -d extra/${LIBS[$lib]} ]] && [[ ${LIBFLAGS[$lib]} = "TRUE" ]];then
             if [ ${LIBS[$lib]} = "ffmpeg" ] && [ $INTERNAL_DEBUG = "TRUE" ];then
                 # ffmpeg用内部自己研究的代码
-                if [ ! -d $1/forksource/ffmpeg-$ARCH ];then
+                if [ ! -d build/forksource/ffmpeg ];then
                     echo "== copy fork ffmpeg =="
                     mkdir -p build/forksource/ffmpeg
                     cp -rf /Users/apple/devoloper/mine/ffmpeg/ffmpeg-source/ build/forksource/ffmpeg
@@ -222,12 +222,22 @@ function rm_all_fork_source()
 
 function rm_fork_source()
 {
+    if [ $1 = "all" ];then
+        rm -rf build/forksource
+        return
+    fi
+    
     echo "....rm forksource $1...."
     rm -rf build/forksource/$1
 }
 
 function rm_build()
 {
+    if [ $2 = "all" ];then
+        rm -rf build/$1-*
+        return
+    fi
+    
     for ARCH in ${*:3}
     do
         echo "....rm $1 build $2 $ARCH...."
