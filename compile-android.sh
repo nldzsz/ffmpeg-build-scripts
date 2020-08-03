@@ -28,20 +28,20 @@ export FF_ANDROID_API=21
 # 否则编译fdk-aac时会出现libtool执行错误,导致编译结束)
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
 #export NDK_PATH=C:/cygwin64/home/Administrator/android-ndk-r21b
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20b
-#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
+export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
-# 开启编译动态库，默认开启
+# 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，不然导入android使用时会出错
 export FF_COMPILE_SHARED=TRUE
-# 开启编译静态库,默认关闭,动态库和静态库同时只能开启一个，不然导入android使用时会出错
-export FF_COMPILE_STATIC=FALSE
+
 # windows下统一用bat脚本来生成独立工具编译目录(因为低于18的ndk库中的make_standalone_toolchain.py脚本在cygwin中执行会出错)
 export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Python38-32/python.exe
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
+# 如果要开启drawtext滤镜，则必须要编译fribidi expat fontconfig freetype库;如果要开启subtitles滤镜，则还要编译ass库
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [expat]=TRUE [fontconfig]=TRUE [freetype]=TRUE [ass]=TRUE
 )
 
 # 内部调试用
@@ -70,6 +70,14 @@ set_toolchain_path()
             export WORK_PATH="$(cygpath -am `pwd`)"
         ;;
     esac
+    mkdir -p ${UNI_BUILD_ROOT}/build/android-$ARCH/pkgconfig
+    
+    HOST_PKG_CONFIG_PATH=`command -v pkg-config`
+    if [ -z ${HOST_PKG_CONFIG_PATH} ]; then
+        echo -e "pkg-config command not found\n"
+        exit 1
+    fi
+    export HOST_PKG_CONFIG_PATH
     
     FF_SYSROOT=""
     FF_CROSS_PREFIX=
@@ -222,22 +230,20 @@ set_flags()
     # 3、编译器优化相关参数，这部分参数往往跟平台以及库无关，比如-O2 -Wno-ignored-optimization-argument等等加快编译进度的参数 -g开启编译调试信息
     # 4、系统路径以及系统版本等相关参数 -isysroot=<SDK_PATH> -I<SDK_PATH>/usr/include
     CFLAGS=
-    ASM_FLAGS=
     HOST=
     if [ $ARCH = "x86_64" ];then
-        HOST=x86_64-linux
+        HOST=x86_64-linux-android
         CFLAGS="-march=x86-64 -msse4.2 -mpopcnt -m64 -mtune=intel"
-        ASM_FLAGS="--disable-asm"
     elif [ $ARCH = "armv7a" ];then
-        HOST=arm-linux
+        HOST=arm-linux-androideabi
         # 下面是针对armv7a架构的cpu指令优化选项，这是针对cpu的，所以每个库都可以这样设定，但是有的库比如x264的./configure文件自动添加了这些配置，就不需要手动添加
         CFLAGS="-march=armv7-a -mcpu=cortex-a8 -mfpu=vfpv3-d16 -mfloat-abi=softfp -mthumb"
     elif [ $ARCH = "arm64" ];then
-        HOST=aaarch64-linux
+        HOST=aarch64-linux-android
         # arm64 默认就开启了neon，所以不需要像armv7a那样手动开启
         CFLAGS="-march=armv8-a"
     else
-        echo "unsurported platform $ARCH !...."
+        echo "ext unsurported platform $ARCH !...."
         exit 1
     fi
     CFLAGS="$CFLAGS -fno-integrated-as -fstrict-aliasing -fPIC -D__ANDROID_API__=${FF_ANDROID_API}"
@@ -322,53 +328,38 @@ real_do_compile()
 #编译x264
 do_compile_x264()
 {
-    local CONFIGURE_FLAGS="--enable-pic --disable-cli --enable-strip "
-    # 默认为编译动态库
-    shared_enable=""
-    static_enable=""
-    # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
-    if [ $FF_COMPILE_SHARED == "TRUE" ];then
+    local CONFIGURE_FLAGS="--enable-static --enable-pic --disable-cli --enable-strip "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--enable-shared --enable-pic --disable-cli --enable-strip "
+        # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
         cd $UNI_BUILD_ROOT/build/forksource/x264
         case "$uname" in
-            Darwin)
-                sed -i "" "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
-                sed -i "" "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
-            ;;
-            Darwin)
-                sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
-                sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
-            ;;
-            CYGWIN_NT-*)
-                sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
-                sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
-            ;;
+           Darwin)
+               sed -i "" "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+               sed -i "" "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+           ;;
+           Darwin)
+               sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+               sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+           ;;
+           CYGWIN_NT-*)
+               sed -i "s/echo \"SONAME=libx264.so.\$API\" >> config.mak/echo \"SONAME=libx264.so\" >> config.mak/g" configure
+               sed -i "s/ln -f -s \$(SONAME) \$(DESTDIR)\$(libdir)\/libx264.\$(SOSUFFIX)//g" Makefile
+           ;;
         esac
         cd -
-        shared_enable="--enable-shared"
     fi
-    if [ $FF_COMPILE_STATIC == "TRUE" ];then
-        static_enable="--enable-static"
-    fi
-    CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
+    
     real_do_compile "$CONFIGURE_FLAGS" "x264" $1
 }
 
 #编译fdk-aac
 do_compile_fdk_aac()
 {
-    local CONFIGURE_FLAGS="--with-pic "
-    # 默认为编译动态库;fdk_aac 这个选项无效
-    shared_enable="--enable-shared"
-    static_enable=""
-    # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
-    if [ $FF_COMPILE_SHARED != "TRUE" ];then
-        shared_enable=""
+    local CONFIGURE_FLAGS="--enable-static --with-pic "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--enable-shared --with-pic "
     fi
-    if [ $FF_COMPILE_STATIC == "TRUE" ];then
-        static_enable="--enable-static"
-    fi
-    CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
-    
     # 遇到问题：Linux下编译时提示"error: version mismatch.  This is Automake 1.15.1"
     # 分析原因：fdk-aac自带的生成的configure.ac和Linux系统的Automake不符合
     # 解决方案：命令autoreconf重新配置configure.ac即可
@@ -383,18 +374,10 @@ do_compile_fdk_aac()
 #编译mp3lame
 do_compile_mp3lame()
 {
-    local CONFIGURE_FLAGS="--disable-frontend --with-pic=PIC"
-    # 默认为编译动态库
-    shared_enable="--enable-shared=no"
-    static_enable="--enable-static=no"
-    # 默认生成动态库时会带版本号，这里通过匹配去掉了版本号
-    if [ $FF_COMPILE_SHARED == "TRUE" ];then
-        shared_enable="--enable-shared=yes"
+    local CONFIGURE_FLAGS="--enable-static --disable-shared --disable-frontend --with-pic=PIC "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--enable-static=no --enable-shared=yes --disable-frontend --with-pic=PIC "
     fi
-    if [ $FF_COMPILE_STATIC == "TRUE" ];then
-        static_enable="--enable-static=yes"
-    fi
-    CONFIGURE_FLAGS="$CONFIGURE_FLAGS $shared_enable $static_enable"
     real_do_compile "$CONFIGURE_FLAGS" "mp3lame" $1
 }
 #编译ass
@@ -418,13 +401,26 @@ do_compile_ass()
         cd -
     fi
     
-    local CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
+    local CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --disable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --disable-static --enable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    fi
     real_do_compile "$CONFIGURE_FLAGS" "ass" $1
 }
 #编译freetype
 do_compile_freetype()
 {
-    local CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --enable-shared "
+    if [ ! -f $UNI_BUILD_ROOT/build/forksource/freetype/configure ];then
+        local SOURCE=$UNI_BUILD_ROOT/build/forksource/freetype
+        cd $SOURCE
+        ./autogen.sh
+        cd -
+    fi
+    
+    local CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --disable-shared "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --disable-static --enable-shared "
+    fi
     real_do_compile "$CONFIGURE_FLAGS" "freetype" $1
 }
 #编译fribidi
@@ -436,8 +432,45 @@ do_compile_fribidi()
         ./autogen.sh
         cd -
     fi
-    local CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --disable-debug --disable-deprecated "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--with-pic --disable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
+    fi
     real_do_compile "$CONFIGURE_FLAGS" "fribidi" $1
+}
+#编译expact
+do_compile_expat()
+{
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --without-docbook --without-xmlwf "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--with-pic --disable-static --enable-shared --disable-fast-install --without-docbook --without-xmlwf "
+    fi
+    real_do_compile "$CONFIGURE_FLAGS" "expat" $1
+}
+#编译fontconfig
+do_compile_fontconfig()
+{
+    if [[ ! -f $UNI_BUILD_ROOT/build/android-$1/expat/lib/libexpat.a && ! -f $UNI_BUILD_ROOT/build/android-$1/expat/lib/libexpat.so ]];then
+        echo "fontconfig dependency expat please set [expat]=TRUE "
+        exit 1
+    fi
+    
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="--with-pic --disable-static --enable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
+    fi
+    CONFIGURE_FLAGS+=" --with-expat=$UNI_BUILD_ROOT/build/android-$1/expat"
+    real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
 # 编译ffmpeg
 do_compile_ffmpeg()
@@ -464,57 +497,64 @@ do_compile_ffmpeg()
     FF_EXTRA_LDFLAGS=
     # 开始编译
     # 导入ffmpeg 的配置
+    COMMON_FF_CFG_FLAGS=
     export COMMON_FF_CFG_FLAGS=
     . $FF_BUILD_ROOT/config/module.sh
     
-    COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-cross-compile --enable-pic --enable-static --disable-shared --target-os=darwin"
+    COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-cross-compile --enable-pic --enable-static --disable-shared --target-os=android --enable-jni"
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        COMMON_FF_CFG_FLAGS="--enable-cross-compile --enable-pic --disable-static --enable-shared --target-os=android --enable-jni "
+    fi
+    set_flags $FF_ARCH
     
+    local NEON_FLAG=
+    local TARGET_ARCH=
+    local TARGET_CPU=
+    FF_BUILD_NAME2=
+    if [ "$FF_ARCH" = "x86_64" ]; then
+        NEON_FLAG=" --disable-neon --enable-asm --enable-inline-asm"
+        TARGET_CPU="x86_64"
+        TARGET_CPU="x86_64"
+        
+    elif [ "$FF_ARCH" = "arm64" ]; then
+        NEON_FLAG=" --enable-neon --enable-asm --enable-inline-asm"
+        TARGET_ARCH="aarch64"
+        TARGET_CPU="armv8-a"
+        FF_BUILD_NAME2=arm64-v8a
+    elif [ "$FF_ARCH" = "armv7a" ]; then
+        NEON_FLAG=" --enable-neon --enable-asm --enable-inline-asm"
+        TARGET_ARCH="armv7-a"
+        TARGET_CPU="armv7-a"
+        FF_BUILD_NAME2=armeabi-v7a
+    else
+        echo "unknown architecture $FF_ARCH";
+        exit 1
+    fi
+    export CFLAGS="$CFLAGS"
     FF_SOURCE=$FF_BUILD_ROOT/build/forksource/$FF_BUILD_NAME
     FF_PREFIX=$FF_BUILD_ROOT/build/android-$FF_ARCH/$FF_BUILD_NAME
     if [ $INTERNAL_DEBUG = "TRUE" ];then
-        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
+        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$FF_BUILD_NAME2
         COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --disable-optimizations --enable-debug --disable-small";
     else
         COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-optimizations --disable-debug --enable-small"
     fi
     mkdir -p $FF_PREFIX
-
-    set_flags $FF_ARCH
     
-    local FF_CFLAGS=
-    local NEON_FLAG=
-    local TARGET_ARCH=
-    local TARGET_CPU=
-    local ARCH_OPTIONS=
-    if [ "$FF_ARCH" = "x86_64" ]; then
-        NEON_FLAG=" --disable-neon"
-        TARGET_CPU="x86_64"
-        TARGET_CPU="armv8"
-        ARCH_OPTIONS="--disable-asm"
-    elif [ "$FF_ARCH" = "arm64" ]; then
-        NEON_FLAG=" --enable-neon"
-        TARGET_ARCH="aarch64"
-        TARGET_CPU="armv8"
-        ARCH_OPTIONS="--enable-asm"
-        FF_CFLAGS="-Wc,-fembed-bitcode"
-        FF_GASPP_EXPORT="GASPP_FIX_XCODE5=1"
-    elif [ "$FF_ARCH" = "arm64e" ]; then
-        NEON_FLAG=" --enable-neon"
-        TARGET_ARCH="aarch64"
-        TARGET_CPU="armv8.3-a"
-        ARCH_OPTIONS="--enable-asm"
-        FF_CFLAGS="-Wc,-fembed-bitcode"
-        FF_GASPP_EXPORT="GASPP_FIX_XCODE5=1"
-    else
-        echo "unknown architecture $FF_ARCH";
-        exit 1
-    fi
-    export CFLAGS="$CFLAGS $FF_CFLAGS"
-    
+    # -D__ANDROID_API__=$API 解决用NDK15以后出现的undefined reference to 'stderr'问题
+    # 参考官网https://android.googlesource.com/platform/ndk/+/ndk-r15-release/docs/UnifiedHeaders.md
+    # -Wno-psabi -Wa,--noexecstack 去掉-Wno-psabi(该选项作用未知) 选项变成 -Wa,--noexecstack;否则会一直打出warning: unknown warning option '-Wno-psabi'的警告
+    FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -O3 -Wall -pipe \
+        -std=c99 \
+        -ffast-math \
+        -fstrict-aliasing -Werror=strict-aliasing \
+        -Wa,--noexecstack \
+        -DANDROID -DNDEBUG -D__ANDROID_API__=$FF_ANDROID_API"
+        
     #硬编解码，不同平台配置参数不一样
     if [ $ENABLE_GPU = "TRUE" ];then
         # 开启Android的MediaCodec GPU解码;ffmpeg只支持GPU解码
-        export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-encoder=h264_videotoolbox"
+        export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec --enable-decoder=h264_mediacodec"
     fi
     
     #导入ffmpeg的外部库，这里指定外部库的路径，配置参数则转移到了config/module.sh中
@@ -541,8 +581,10 @@ do_compile_ffmpeg()
     make distclean
     set -e
     ./configure $COMMON_FF_CFG_FLAGS \
-        --sysroot=${SDKPATH} \
+        --cross-prefix="${FF_CROSS_PREFIX}-" \
+        --sysroot=${FF_SYSROOT} \
         --prefix=${FF_PREFIX} \
+        --pkg-config="${HOST_PKG_CONFIG_PATH}" \
         --arch="${TARGET_ARCH}" \
         --cpu="${TARGET_CPU}" \
         --ar="${AR}" \
@@ -554,8 +596,10 @@ do_compile_ffmpeg()
         --extra-cflags="$FF_EXTRA_CFLAGS" \
         --extra-cxxflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
+        --extra-libs="$(pkg-config --libs --static cpu-features)" \
         ${NEON_FLAG} \
         ${ARCH_OPTIONS} \
+        --ln_s="cp -rf" \
 
     make -j$(get_cpu_count) && make install || exit 1
     cd -
@@ -565,7 +609,10 @@ do_compile_ffmpeg()
 function compile_external_lib_ifneed()
 {
     local FF_ARCH=$1
-    
+    local TYPE=a
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        TYPE=so
+    fi
     for i in $(echo ${!LIBFLAGS[@]})
     do
         local lib=${LIBS[i]};
@@ -577,7 +624,7 @@ function compile_external_lib_ifneed()
         local FFMPEG_DEP_LIB=$UNI_BUILD_ROOT/build/android-$FF_ARCH/$FF_BUILD_NAME/lib
 
         if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" ]; then
+            if [ ! -f "${FFMPEG_DEP_LIB}/lib$lib.$TYPE" ]; then
                 # 编译
                 if [ $lib = "fdk-aac" ];then
                     lib=fdk_aac
@@ -588,84 +635,58 @@ function compile_external_lib_ifneed()
     done;
 }
 
-
-do_lipo_lib () {
-    
-    # 将ffmpeg的各个模块生成的库以及引用的外部库按照要编译的平台合并成一个库(比如指定了x86_64和arm64两个平台，那么执行此命令后将对应生成各自平台的两个库)
-    LIB_FILE=$1.a
-    LIPO_FLAGS=
-    for ARCH in $FF_ALL_ARCHS_IOS
-    do
-        ARCH_LIB_FILE="$UNI_BUILD_ROOT/build/ffmpeg-$ARCH/lib/$LIB_FILE"
-        if [ -f "$ARCH_LIB_FILE" ]; then
-            LIPO_FLAGS="$LIPO_FLAGS $ARCH_LIB_FILE"
-        else
-            echo "skip $LIB_FILE of $ARCH";
-        fi
-    done
-    
-    ffmpeg_output_dir=$ffmpeg_uni_output_dir/lib/$LIB_FILE
-    xcrun lipo -create $LIPO_FLAGS -output $ffmpeg_output_dir
-    xcrun lipo -info $ffmpeg_output_dir
-}
-
 do_lipo_all () {
-    
-    # for external lib
-    for(( i=$x264;i<${#LIBS[@]};i++))
-    do
-        lib=${LIBS[i]};
-        uni_lib_dir=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib
-        uni_inc_dir=$UNI_BUILD_ROOT/build/ios-universal/$lib/include
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            mkdir -p $uni_lib_dir
-            mkdir -p $uni_inc_dir
-            cp -rf $UNI_BUILD_ROOT/build/ios-arm64/$lib/include $uni_inc_dir
-        fi
-        ARCH_LIB_FILE=
-        for ARCH in $FF_ALL_ARCHS_IOS
-        do
-            ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/lib$lib.a "
-        done
-
-        xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/lib$lib.a
-        xcrun lipo -info $uni_lib_dir/lib$lib.a
-    done
-
-    # for ffmpeg
-    local FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
-    if [[ ${LIBFLAGS[$ffmpeg]} = "FALSE" ]]; then
-        echo "set [ffmpeg]=TRUE first"
-        exit 1
+    TYPE=a
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        TYPE=so
     fi
-    uni_inc_dir=$UNI_BUILD_ROOT/build/ios-universal/ffmpeg
-    uni_lib_dir=$UNI_BUILD_ROOT/build/ios-universal/ffmpeg/lib
-    mkdir -p $uni_inc_dir
-    mkdir -p $uni_lib_dir
-    cp -rf $UNI_BUILD_ROOT/build/ios-arm64/ffmpeg/include $uni_inc_dir
-
-
-    for lib in $FF_FFMPEG_LIBS
+    for ARCH in $FF_ALL_ARCHS_ANDROID
     do
-        ARCH_LIB_FILE=
-        for ARCH in $FF_ALL_ARCHS_IOS
-        do
-            ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/ffmpeg/lib/$lib.a "
-        done
-        xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/$lib.a
-        xcrun lipo -info $uni_lib_dir/$lib.a
-    done
-    
-    # copy external to ffmpeg universal dir
-    for(( i=$x264;i<${#LIBS[@]};i++))
-    do
-        lib=${LIBS[i]};
-        
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            uni_lib_dir1=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib/lib$lib.a
-            cp -r $uni_lib_dir1 $uni_lib_dir
+        ARCH2=
+        if [ "$ARCH" = "x86_64" ]; then
+            ARCH2=x86_64
+        elif [ "$ARCH" = "arm64" ]; then
+            ARCH2=arm64-v8a
+        elif [ "$ARCH" = "armv7a" ]; then
+            ARCH2=armeabi-v7a
+        else
+            echo "unknown architecture 1 $ARCH";
+            exit 1
         fi
+        
+        # for external lib
+        for(( i=$x264;i<${#LIBS[@]};i++))
+        do
+            lib=${LIBS[i]};
+            uni_inc_dir=$UNI_BUILD_ROOT/build/android-universal/$ARCH2/$lib
+            uni_lib_dir=$UNI_BUILD_ROOT/build/android-universal/$ARCH2/all-$TYPE
+            if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
+                mkdir -p $uni_lib_dir
+                mkdir -p $uni_inc_dir
+                cp -rf $UNI_BUILD_ROOT/build/android-arm64/$lib/include $uni_inc_dir
+                cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE $uni_lib_dir/lib$lib.$TYPE
+            fi
+        done
+        
+        # for ffmpeg
+        local FF_FFMPEG_LIBS="libavcodec libavfilter libavformat libavutil libswscale libswresample"
+        if [[ ${LIBFLAGS[$ffmpeg]} = "FALSE" ]]; then
+            echo "set [ffmpeg]=TRUE first"
+            exit 1
+        fi
+        
+        uni_inc_dir=$UNI_BUILD_ROOT/build/android-universal/$ARCH2/ffmpeg
+        mkdir -p $uni_inc_dir
+        cp -rf $UNI_BUILD_ROOT/build/android-arm64/ffmpeg/include $uni_inc_dir
+        for lib in $FF_FFMPEG_LIBS
+        do
+            uni_lib_dir=$UNI_BUILD_ROOT/build/android-universal/$ARCH2/all-$TYPE
+            
+            mkdir -p $uni_lib_dir
+            cp $UNI_BUILD_ROOT/build/android-$ARCH/ffmpeg/lib/$lib.$TYPE $uni_lib_dir/$lib.$TYPE
+        done
     done
+
 }
 
 # 命令开始执行处----------
@@ -692,7 +713,7 @@ elif [[ "$FF_TARGET" == clean-* ]]; then
     # 清除对应库forksource下的源码目录和build目录
     name=${FF_TARGET#clean-*}
     rm_fork_source $name
-    rm_build android $name $FF_ALL_ARCHS_IOS
+    rm_build android $name $FF_ALL_ARCHS_ANDROID
 elif [ "$FF_TARGET" == "--help" ]; then
     echo "Usage:"
     echo "  compile-android.sh"
