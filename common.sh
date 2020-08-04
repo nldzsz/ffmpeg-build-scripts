@@ -27,9 +27,9 @@ x264=1
 fdkaac=2
 mp3lame=3
 fribidi=4
-expat=5
-fontconfig=6
-freetype=7
+freetype=5
+expat=6
+fontconfig=7
 ass=8
 
 # 各个源码的名字
@@ -38,9 +38,9 @@ LIBS[x264]=x264
 LIBS[fdkaac]=fdk-aac
 LIBS[mp3lame]=mp3lame
 LIBS[fribidi]=fribidi
+LIBS[freetype]=freetype
 LIBS[expat]=expat
 LIBS[fontconfig]=fontconfig
-LIBS[freetype]=freetype
 LIBS[ass]=ass
 
 # 各个源码对应的pkg-config中.pc的名字
@@ -49,9 +49,9 @@ LIBS_PKGS[x264]=x264
 LIBS_PKGS[fdkaac]=fdk-aac
 LIBS_PKGS[mp3lame]=mp3lame
 LIBS_PKGS[fribidi]=fribidi
+LIBS_PKGS[freetype]=freetype2
 LIBS_PKGS[expat]=expat
 LIBS_PKGS[fontconfig]=fontconfig
-LIBS_PKGS[freetype]=freetype2
 LIBS_PKGS[ass]=libass
 
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
@@ -65,12 +65,12 @@ All_Resources[fdkaac]=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-
 All_Resources[mp3lame]=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
 # fribidi
 All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.10
+# freetype
+All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10.2.tar.gz
 # expat
 All_Resources[expat]=https://github.com/libexpat/libexpat/releases/download/R_2_2_9/expat-2.2.9.tar.gz
 # fontconfig
 All_Resources[fontconfig]=https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.13.92.tar.gz
-# freetype
-All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10.2.tar.gz
 # libass
 All_Resources[ass]=https://codeload.github.com/libass/libass/tar.gz/0.14.0
 
@@ -83,9 +83,9 @@ LIBS_PARAM[x264]="--enable-gpl --enable-libx264 --enable-encoder=libx264"
 LIBS_PARAM[fdkaac]="--enable-nonfree --enable-libfdk-aac --enable-encoder=libfdk_aac"
 LIBS_PARAM[mp3lame]="--enable-libmp3lame --enable-encoder=libmp3lame"
 LIBS_PARAM[fribidi]="--enable-libfribidi"
+LIBS_PARAM[freetype]="--enable-filter=drawtext --enable-libfreetype --enable-muxer=ass --enable-demuxer=ass --enable-muxer=srt --enable-demuxer=srt --enable-muxer=webvtt --enable-demuxer=webvtt --enable-encoder=ass --enable-decoder=ass --enable-encoder=srt --enable-decoder=srt --enable-encoder=webvtt --enable-decoder=webvtt"
 LIBS_PARAM[expat]=""
 LIBS_PARAM[fontconfig]="--enable-libfontconfig"
-LIBS_PARAM[freetype]="--enable-filter=drawtext --enable-libfreetype --enable-muxer=ass --enable-demuxer=ass --enable-muxer=srt --enable-demuxer=srt --enable-muxer=webvtt --enable-demuxer=webvtt --enable-encoder=ass --enable-decoder=ass --enable-encoder=srt --enable-decoder=srt --enable-encoder=webvtt --enable-decoder=webvtt"
 LIBS_PARAM[ass]="--enable-libass --enable-filter=subtitles"
 export LIBS_PARAM
 

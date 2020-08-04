@@ -28,9 +28,10 @@ export FF_ANDROID_API=21
 # 否则编译fdk-aac时会出现libtool执行错误,导致编译结束)
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
 #export NDK_PATH=C:/cygwin64/home/Administrator/android-ndk-r21b
-#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r19c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20b
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
 # 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，不然导入android使用时会出错
 export FF_COMPILE_SHARED=TRUE
@@ -41,7 +42,7 @@ export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Pyth
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 # 如果要开启drawtext滤镜，则必须要编译fribidi expat fontconfig freetype库;如果要开启subtitles滤镜，则还要编译ass库
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [expat]=TRUE [fontconfig]=TRUE [freetype]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
 )
 
 # 内部调试用
@@ -70,7 +71,6 @@ set_toolchain_path()
             export WORK_PATH="$(cygpath -am `pwd`)"
         ;;
     esac
-    mkdir -p ${UNI_BUILD_ROOT}/build/android-$ARCH/pkgconfig
     
     HOST_PKG_CONFIG_PATH=`command -v pkg-config`
     if [ -z ${HOST_PKG_CONFIG_PATH} ]; then
@@ -81,6 +81,8 @@ set_toolchain_path()
     
     FF_SYSROOT=""
     FF_CROSS_PREFIX=
+    FF_TOOLCHAIN_PATH=$WORK_PATH/build/forksource/android-toolchain-$FF_ARCH
+    
     local FF_CC_CPP_PREFIX=
     local FF_ARCH_1=arm
     local FF_CC=gcc
@@ -99,7 +101,6 @@ set_toolchain_path()
         exit 1
     fi
 
-    local FF_TOOLCHAIN_PATH=$WORK_PATH/build/forksource/android-toolchain-$FF_ARCH
     local FF_TOOLCHAIN_TOUCH="$FF_TOOLCHAIN_PATH/touch"
     local FF_SAVE_NDK_VERSION="1.0"
     if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
@@ -121,9 +122,8 @@ set_toolchain_path()
         if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
             
             # NDK版本不一样了，则先删除以前的
-            if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
-                rm -rf $FF_TOOLCHAIN_PATH
-            fi
+            rm -rf $FF_TOOLCHAIN_PATH
+            rm -rf $WORK_PATH/build/android-$FF_ARCH
             
             
             #遇到问题：cyg调用dnk17以下版本的make-standalone-toolchain.sh脚本会出错，而且ndk21的此脚本也是各种问题
@@ -152,9 +152,8 @@ set_toolchain_path()
             
             
             # NDK版本不一样了，则先删除以前的
-            if [ -f "$FF_TOOLCHAIN_TOUCH" ]; then
-                rm -rf $FF_TOOLCHAIN_PATH
-            fi
+            rm -rf $FF_TOOLCHAIN_PATH
+            rm -rf $WORK_PATH/build/android-$FF_ARCH
             
             # ndk19以前才需要，但是ndk20在ubunto上编译mp3lame时报错，21没问题，所以21以下统一用此方法，21及以上才不用安装独立工具链
             if [[ "$IJK_NDK_REL" < "21" ]]; then
@@ -203,23 +202,13 @@ set_toolchain_path()
     # 开启该选项后x264的编译选项 -DSTAK_ALIGNMENT=会加入到AS中，导致编译失败。如果没有定义这个，
     # -DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
     #export AS=${FF_CROSS_PREFIX}-as
-    export NM=${FF_CROSS_PREFIX}-nm
     export CC=${FF_CC_CPP_PREFIX}-$FF_CC
     export CXX=${FF_CC_CPP_PREFIX}-$FF_CPP
     export LD=${FF_CROSS_PREFIX}-ld
     export RANLIB=${FF_CROSS_PREFIX}-ranlib
     export STRIP=${FF_CROSS_PREFIX}-strip
-    export OBJDUMP=${FF_CROSS_PREFIX}-objdump
-    export OBJCOPY=${FF_CROSS_PREFIX}-objcopy
-    export ADDR2LINE=${FF_CROSS_PREFIX}-addr2line
-    export READELF=${FF_CROSS_PREFIX}-readelf
-    export SIZE=${FF_CROSS_PREFIX}-size
-    export STRINGS=${FF_CROSS_PREFIX}-strings
-    export ELFEDIT=${FF_CROSS_PREFIX}-elfedit
-    export GCOV=${FF_CROSS_PREFIX}-gcov
-    export GDB=${FF_CROSS_PREFIX}-gdb
-    export GPROF=${FF_CROSS_PREFIX}-gprof
     export PKG_CONFIG_LIBDIR="${UNI_BUILD_ROOT}/build/android-$ARCH/pkgconfig"
+    mkdir -p $PKG_CONFIG_LIBDIR
 }
 set_flags()
 {
@@ -248,11 +237,6 @@ set_flags()
     fi
     CFLAGS="$CFLAGS -fno-integrated-as -fstrict-aliasing -fPIC -D__ANDROID_API__=${FF_ANDROID_API}"
     
-    # --sysroot 指定了交叉编译系统的根路径，那么所有交叉编译工具或者其它相关的搜索路径都将基于此(如果不指定将按照本机/导致搜索不到路径而编译失败)
-    # -I和-L指定了系统库的搜索路径，也可以在下面通过configure的配置参数--with-sysroot来指定，效果一样。
-    local LL_CFLAGS="--sysroot=${FF_SYSROOT} -I${FF_SYSROOT}/usr/include -I${FF_TOOLCHAIN_PATH}/include"
-    local LL_LDFLAGS="-L${FF_SYSROOT}/usr/lib -L${FF_SYSROOT}/lib"
-    
     CFLAGS="$CFLAGS $LL_CFLAGS"
     CPPFLAGS="${CFLAGS}"
     LDFLAGS="$CFLAGS $LL_LDFLAGS"
@@ -268,9 +252,11 @@ set_flags()
     # 8、PKG_CONFIG_PATH/PKG_CONFIG_LIBDIR;指定pkg-config工具所需要的.pc文件的搜索路径(备注：一般通过Autoconf生成的脚本都会根据此参数自动引入pkg-config)
     #
     # 备注：x264 ffmpeg等非Autoconf生成的configure配置脚本以及编译器参数，可能有些不同;CFLAGS可能不同的库有些一不一样
-    SYS_ROOT_CONF="--with-sysroot"
+    SYS_ROOT_CONF="--with-sysroot=${FF_SYSROOT}"
     if [ $lib = "x264" ];then
-        SYS_ROOT_CONF="--sysroot"
+        SYS_ROOT_CONF="--sysroot=${FF_SYSROOT}"
+    elif [ $lib = "fontconfig" ];then
+        SYS_ROOT_CONF=
     elif [ $lib = "fdk-aac" ];then
         CFLAGS="$CFLAGS -Wno-error=unused-command-line-argument-hard-error-in-future"
     else
@@ -312,7 +298,7 @@ real_do_compile()
         $CONFIGURE_FLAGS \
         --host=$HOST \
         --prefix=$PREFIX \
-        $SYS_ROOT_CONF=${FF_SYSROOT} \
+        $SYS_ROOT_CONF \
 
     make -j$(get_cpu_count) && make install || exit 1
     if [ $lib = "mp3lame" ];then
@@ -469,7 +455,6 @@ do_compile_fontconfig()
     if [ $FF_COMPILE_SHARED = "TRUE" ];then
         CONFIGURE_FLAGS="--with-pic --disable-static --enable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
     fi
-    CONFIGURE_FLAGS+=" --with-expat=$UNI_BUILD_ROOT/build/android-$1/expat"
     real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
 # 编译ffmpeg
@@ -503,7 +488,7 @@ do_compile_ffmpeg()
     
     COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-cross-compile --enable-pic --enable-static --disable-shared --target-os=android --enable-jni"
     if [ $FF_COMPILE_SHARED = "TRUE" ];then
-        COMMON_FF_CFG_FLAGS="--enable-cross-compile --enable-pic --disable-static --enable-shared --target-os=android --enable-jni "
+        COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-cross-compile --enable-pic --disable-static --enable-shared --target-os=android --enable-jni "
     fi
     set_flags $FF_ARCH
     
@@ -596,7 +581,6 @@ do_compile_ffmpeg()
         --extra-cflags="$FF_EXTRA_CFLAGS" \
         --extra-cxxflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
-        --extra-libs="$(pkg-config --libs --static cpu-features)" \
         ${NEON_FLAG} \
         ${ARCH_OPTIONS} \
         --ln_s="cp -rf" \
