@@ -34,7 +34,7 @@ export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
 # 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，不然导入android使用时会出错
-export FF_COMPILE_SHARED=TRUE
+export FF_COMPILE_SHARED=FALSE
 
 # windows下统一用bat脚本来生成独立工具编译目录(因为低于18的ndk库中的make_standalone_toolchain.py脚本在cygwin中执行会出错)
 export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Python38-32/python.exe
@@ -252,6 +252,8 @@ set_flags()
     # 8、PKG_CONFIG_PATH/PKG_CONFIG_LIBDIR;指定pkg-config工具所需要的.pc文件的搜索路径(备注：一般通过Autoconf生成的脚本都会根据此参数自动引入pkg-config)
     #
     # 备注：x264 ffmpeg等非Autoconf生成的configure配置脚本以及编译器参数，可能有些不同;CFLAGS可能不同的库有些一不一样
+    # 遇到问题："引入fontconfig时提示"libtool: link: warning: library `/home/admin/usr/lib/freetype.la' was moved." ";因为fontcong依赖freetype，libass也依赖freetype。而fontconfig如果加入了--with-sysroot=参数
+    # 则生成的fontconfig.la文件的dependency_libs字段 是-Lxxx/freetype/lib =/user/xxxxx/freetype.la的格式，导致libtool解析错误，所以这里fontconfig不需要添加"--with-root" 参数
     SYS_ROOT_CONF="--with-sysroot=${FF_SYSROOT}"
     if [ $lib = "x264" ];then
         SYS_ROOT_CONF="--sysroot=${FF_SYSROOT}"
@@ -495,7 +497,7 @@ do_compile_ffmpeg()
     local NEON_FLAG=
     local TARGET_ARCH=
     local TARGET_CPU=
-    FF_BUILD_NAME2=
+    local FF_BUILD_NAME2=
     if [ "$FF_ARCH" = "x86_64" ]; then
         NEON_FLAG=" --disable-neon --enable-asm --enable-inline-asm"
         TARGET_CPU="x86_64"
@@ -648,7 +650,12 @@ do_lipo_all () {
                 mkdir -p $uni_lib_dir
                 mkdir -p $uni_inc_dir
                 cp -rf $UNI_BUILD_ROOT/build/android-arm64/$lib/include $uni_inc_dir
-                cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE $uni_lib_dir/lib$lib.$TYPE
+                if [ $INTERNAL_DEBUG = "TRUE" ];then
+                    FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$FF_BUILD_NAME2
+                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$ARCH2/lib$lib.$TYPE
+                else
+                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE $uni_lib_dir/lib$lib.$TYPE
+                fi
             fi
         done
         

@@ -18,18 +18,25 @@
 
 #----------
 set -e
+# 内部调试用
+export INTERNAL_DEBUG=TRUE
 . ./common.sh
 
 #当前Linux/Windows/Mac操作系统的位数，如果是64位则填写x86_64，32位则填写x86
 export FF_PC_ARCH="x86_64"
 
+# libass使用Coretext还是fontconfig;默认CORETEXT
+export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
+if [ $uname = "Darwin" ] && [ $USE_CORETEXT = "TRUE" ];then
 export LIBFLAGS=(
 [ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
 )
-
-# 内部调试用
-export INTERNAL_DEBUG=TRUE
+else
+export LIBFLAGS=(
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+)
+fi
 
 # 是否开启ffplay ffmpeg ffprobe的编译；默认关闭
 export ENABLE_FFMPEG_TOOLS=FALSE
@@ -51,7 +58,27 @@ FF_PC_TARGET=$1
 FF_PC_ACTION=$2
 export FF_PLATFORM_TARGET=$1
 
-real-do-compile()
+# 配置编译环境
+set_toolchain_path()
+{
+    local ARCH=$1
+    mkdir -p ${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
+    
+    # xcrun 是调用iOS交叉编译工具的命令 通过xcrun --help 可以查看具体使用，后面跟具体的编译工具 如ar cc等等
+    # 定义编译工具CC CXX AR等必须要用export进行声明，否则没有效果;-f代表输出对应工具的绝对路径;如下CC和CXX只要直接使用clang和clang++(否则编译mp3lame库会出错，原因未知:fixbug)
+#    export CC=clang
+#    export CXX=clang++
+#    export AR=$(xcrun --sdk $PLATFORM -f ar)
+#    export OBJC=$(xcrun --sdk $PLATFORM -f clang)
+#    export LD=$(xcrun --sdk $PLATFORM -f ld)
+#    export RANLIB=$(xcrun --sdk $PLATFORM -f ranlib)
+#    export STRIP=$(xcrun --sdk $PLATFORM -f strip)
+#    export SDKPATH=$(xcrun --sdk $PLATFORM --show-sdk-path)
+    export PKG_CONFIG_PATH=${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
+    
+}
+
+real_do_compile()
 {	
 	CONFIGURE_FLAGS=$1
 	lib=$2
@@ -74,25 +101,32 @@ real-do-compile()
 	--prefix=$PREFIX 
 
 	make -j$(get_cpu_count) && make install || exit 1
-	
-	cd -
+	if [ $lib = "mp3lame" ];then
+        create_mp3lame_package_config "${PKG_CONFIG_PATH}" "${PREFIX}"
+    elif [ $lib = "freetype" ];then
+        cp ${PREFIX}/lib/pkgconfig/*.pc ${PKG_CONFIG_PATH} || exit 1
+    else
+        cp ./*.pc ${PKG_CONFIG_PATH} || exit 1
+    fi
+    
+    cd -
 }
 
 #编译x264
-do-compile-x264()
+do_compile_x264()
 {	
 	CONFIGURE_FLAGS="--enable-static --enable-shared --enable-pic --disable-cli --enable-strip"
-	real-do-compile "$CONFIGURE_FLAGS" "x264"
+	real_do_compile "$CONFIGURE_FLAGS" "x264"
 }
 
 #编译fdk-aac
-do-compile-fdk-aac()
+do_compile_fdk_aac()
 {
 	CONFIGURE_FLAGS="--enable-static --enable-shared --with-pic "
-	real-do-compile "$CONFIGURE_FLAGS" "fdk-aac"
+	real_do_compile "$CONFIGURE_FLAGS" "fdk-aac"
 }
 #编译mp3lame
-do-compile-mp3lame()
+do_compile_mp3lame()
 {
 	#遇到问题：mp3lame连接时提示"export lame_init_old: symbol not defined"
 	#分析原因：未找到这个函数的实现
@@ -101,10 +135,10 @@ do-compile-mp3lame()
 	$OUR_SED "/lame_init_old/d" $SOURCE
 	
 	CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend "
-	real-do-compile "$CONFIGURE_FLAGS" "mp3lame"
+	real_do_compile "$CONFIGURE_FLAGS" "mp3lame"
 }
 #编译ass
-do-compile-ass()
+do_compile_ass()
 {
     if [ ! -f $UNI_BUILD_ROOT/build/forksource/ass/configure ];then
         SOURCE=$UNI_BUILD_ROOT/build/forksource/ass
@@ -114,16 +148,19 @@ do-compile-ass()
     fi
     
     CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
-    real-do-compile "$CONFIGURE_FLAGS" "ass"
+    if [ $USE_CORETEXT = "FALSE" ];then
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --disable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    fi
+    real_do_compile "$CONFIGURE_FLAGS" "ass"
 }
 #编译freetype
-do-compile-freetype()
+do_compile_freetype()
 {
     CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --enable-shared "
-    real-do-compile "$CONFIGURE_FLAGS" "freetype"
+    real_do_compile "$CONFIGURE_FLAGS" "freetype"
 }
 #编译fribidi
-do-compile-fribidi()
+do_compile_fribidi()
 {
     if [ ! -f $UNI_BUILD_ROOT/build/forksource/fribidi/configure ];then
         SOURCE=$UNI_BUILD_ROOT/build/forksource/fribidi
@@ -132,13 +169,29 @@ do-compile-fribidi()
         cd -
     fi
     CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
-    real-do-compile "$CONFIGURE_FLAGS" "fribidi"
+    real_do_compile "$CONFIGURE_FLAGS" "fribidi"
 }
-#编译png
-do-compile-png()
+#编译expact
+do_compile_expat()
 {
-    CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-unversioned-libpng-pc --disable-unversioned-libpng-config "
-    real-do-compile "$CONFIGURE_FLAGS" "png"
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --without-docbook --without-xmlwf "
+    real_do_compile "$CONFIGURE_FLAGS" "expat" $1
+}
+#编译fontconfig
+do_compile_fontconfig()
+{
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
+    real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
 
 # 编译外部库
@@ -152,13 +205,16 @@ compile_external_lib_ifneed()
         if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
             if [[ ! -f "${FFMPEG_DEP_LIB}/lib$lib.a" && ! -f "${FFMPEG_DEP_LIB}/lib$lib.dll.a" && ! -f "${FFMPEG_DEP_LIB}/lib$lib.so" ]] ; then
                 # 编译
-                do-compile-$lib
+                if [ $lib = "fdk-aac" ];then
+                    lib=fdk_aac
+                fi
+                do_compile_$lib
             fi
         fi
     done;
 }
 
-do-compile-ffmpeg()
+do_compile_ffmpeg()
 {
     if [ ${LIBFLAGS[$ffmpeg]} == "FALSE" ];then
         echo "config not build ffmpeg....return"
@@ -208,17 +264,17 @@ do-compile-ffmpeg()
 		lib=${LIBS[i]};
 		lib_inc_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/include
 		lib_lib_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/lib
-		if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
+        lib_pkg=${LIBS_PKGS[i]};
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
 
-			COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
+            COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 
-			FF_EXTRA_CFLAGS="$FF_EXTRA_CFLAGS -I${lib_inc_dir}"
-			FF_EXTRA_LDFLAGS="$FF_EXTRA_LDFLAGS -L${lib_lib_dir}"
-        
-			EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib.a"
-		fi
+            FF_EXTRA_CFLAGS+=" $(pkg-config --cflags $lib_pkg)"
+            FF_EXTRA_LDFLAGS+=" $(pkg-config --libs --static $lib_pkg)"
+            
+            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib.a"
+        fi
 	done
-
 	FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
 
 	# 进行裁剪
@@ -316,10 +372,13 @@ case "$FF_PC_ACTION" in
         
         rm -rf build/$FF_PC_TARGET-$FF_PC_ARCH/ffmpeg
         
+        # 配置环境
+        set_toolchain_path $FF_PC_ARCH
+        
         # 先编译外部库
         compile_external_lib_ifneed
         
         # 最后编译ffmpeg
-        do-compile-ffmpeg
+        do_compile_ffmpeg
     ;;
 esac
