@@ -266,6 +266,12 @@ do_compile_ffmpeg()
         fi
 	done
 	FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
+    # 遇到问题：mac编译时提示"Undefined symbols _libintl_dgettext"
+    # 分析原因：因为fontconfig库依赖intl库而编译时未导入
+    # 解决方案：通过编译参数"-lintl"导入即可
+    if [ $uname = "Darwin" ];then
+        FF_EXTRA_LDFLAGS+="$FF_EXTRA_LDFLAGS -lintl"
+    fi
 
 	# 进行裁剪
     FF_CFG_FLAGS="$FF_CFG_FLAGS";
