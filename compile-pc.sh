@@ -255,7 +255,7 @@ do_compile_ffmpeg()
 		lib_inc_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/include
 		lib_lib_dir=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$lib/lib
         lib_pkg=${LIBS_PKGS[i]};
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
 
             COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 

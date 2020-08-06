@@ -581,7 +581,7 @@ do_compile_ffmpeg()
     for(( i=$x264;i<${#LIBS_PKGS[@]};i++))
     do
         lib_pkg=${LIBS_PKGS[i]};
-        if [[ ${LIBFLAGS[i]} == "TRUE" ]] && [[ ! -z ${LIBS_PARAM[i]} ]];then
+        if [[ ${LIBFLAGS[i]} == "TRUE" ]];then
 
             COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS ${LIBS_PARAM[i]}"
 
