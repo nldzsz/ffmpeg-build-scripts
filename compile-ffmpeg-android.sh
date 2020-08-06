@@ -19,6 +19,8 @@
 #----------
 # modify for your build tool
 set -e
+# 通过. xx.sh的方式执行shell脚本，变量会被覆盖
+. ./common.sh
 
 # 由于目前设备基本都是电脑64位 手机64位 所以这里脚本默认只支持 arm64 x86_64两个平台
 # FF_ALL_ARCHS_ANDROID="armv5 armv7a arm64 i386 x86_64"
@@ -34,9 +36,9 @@ export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
 # 开启编译动态库，默认开启
-export FF_COMPILE_SHARED=TRUE
+export FF_COMPILE_SHARED=FALSE
 # 开启编译静态库,默认关闭,动态库和静态库同时只能开启一个，不然导入android使用时会出错
-export FF_COMPILE_STATIC=FALSE
+export FF_COMPILE_STATIC=TRUE
 # windows下统一用bat脚本来生成独立工具编译目录(因为低于18的ndk库中的make_standalone_toolchain.py脚本在cygwin中执行会出错)
 export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Python38-32/python.exe
 # 是否将这些外部库添加进去;如果不添加 则将对应的值改为FALSE即可；默认添加2个库
@@ -92,7 +94,7 @@ if [ "$FF_TARGET" = "armv7a" -o "$FF_TARGET" = "arm64" -o "$FF_TARGET" = "x86_64
     
 elif [ "$FF_TARGET" = "all" ]; then
     # 开始之前先检查fork的源代码是否存在
-    . ./compile-init.sh android "offline"
+    prepare_all android $FF_ALL_ARCHS_ANDROID
     
     # 清除之前编译的
     rm -rf android/build/ffmpeg-*

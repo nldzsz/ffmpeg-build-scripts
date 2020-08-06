@@ -25,7 +25,7 @@ export INTERNAL_DEBUG=TRUE
 #当前Linux/Windows/Mac操作系统的位数，如果是64位则填写x86_64，32位则填写x86
 export FF_PC_ARCH="x86_64"
 
-# libass使用Coretext还是fontconfig;默认CORETEXT
+# libass使用Coretext还是fontconfig;TRUE代表使用CORETEXT,FALSE代表使用fontconfig
 export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 if [ $uname = "Darwin" ] && [ $USE_CORETEXT = "TRUE" ];then
@@ -63,19 +63,7 @@ set_toolchain_path()
 {
     local ARCH=$1
     mkdir -p ${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
-    
-    # xcrun 是调用iOS交叉编译工具的命令 通过xcrun --help 可以查看具体使用，后面跟具体的编译工具 如ar cc等等
-    # 定义编译工具CC CXX AR等必须要用export进行声明，否则没有效果;-f代表输出对应工具的绝对路径;如下CC和CXX只要直接使用clang和clang++(否则编译mp3lame库会出错，原因未知:fixbug)
-#    export CC=clang
-#    export CXX=clang++
-#    export AR=$(xcrun --sdk $PLATFORM -f ar)
-#    export OBJC=$(xcrun --sdk $PLATFORM -f clang)
-#    export LD=$(xcrun --sdk $PLATFORM -f ld)
-#    export RANLIB=$(xcrun --sdk $PLATFORM -f ranlib)
-#    export STRIP=$(xcrun --sdk $PLATFORM -f strip)
-#    export SDKPATH=$(xcrun --sdk $PLATFORM --show-sdk-path)
     export PKG_CONFIG_PATH=${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
-    
 }
 
 real_do_compile()
@@ -97,14 +85,16 @@ real_do_compile()
     set -e
     
 	./configure \
-	${CONFIGURE_FLAGS} \
-	--prefix=$PREFIX 
+        ${CONFIGURE_FLAGS} \
+        --prefix=$PREFIX
 
 	make -j$(get_cpu_count) && make install || exit 1
 	if [ $lib = "mp3lame" ];then
         create_mp3lame_package_config "${PKG_CONFIG_PATH}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
         cp ${PREFIX}/lib/pkgconfig/*.pc ${PKG_CONFIG_PATH} || exit 1
+    elif [ $lib = "fontconfig" ];then
+        create_fontconfig_package_config "${PKG_CONFIG_PATH}" "${PREFIX}"
     else
         cp ./*.pc ${PKG_CONFIG_PATH} || exit 1
     fi
@@ -300,8 +290,6 @@ do_compile_ffmpeg()
 	echo "[*] configurate ffmpeg"
 	echo "--------------------"
 	echo "FF_CFG_FLAGS=$FF_CFG_FLAGS"
-	echo "--extra-cflags=$FF_EXTRA_CFLAGS"
-	echo "--extra-ldflags=$FF_EXTRA_LDFLAGS"
 
 	cd $FF_SOURCE
     set +e
@@ -312,18 +300,9 @@ do_compile_ffmpeg()
         --extra-cflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
     
-
-	#------- 编译和连接 -------------
-	#生成各个模块对应的静态或者动态库(取决于前面是生成静态还是动态库)
-	echo ""
-	echo "--------------------"
-	echo "[*] compile ffmpeg"
-	echo "--------------------"
-	cp config.* $FF_PREFIX
 	make && make install
-	mkdir -p $FF_PREFIX/include/libffmpeg
-	cp -f config.h $FF_PREFIX/include/libffmpeg/config.h
-	# 拷贝外部库
+	
+    # 拷贝外部库
 	for lib in $EXT_ALL_LIBS
 	do
 		cp -f $lib $FF_PREFIX/lib

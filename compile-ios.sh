@@ -26,10 +26,18 @@ set -e
 export FF_ALL_ARCHS_IOS="arm64e arm64 x86_64"
 target_ios=10.0
 
+# libass使用Coretext还是fontconfig;TRUE代表使用CORETEXT,FALSE代表使用fontconfig
+export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
+if [ $USE_CORETEXT = "TRUE" ];then
 export LIBFLAGS=(
 [ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
 )
+else
+export LIBFLAGS=(
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+)
+fi
 
 # 内部调试用
 export INTERNAL_DEBUG=FALSE
@@ -53,6 +61,13 @@ set_toolchain_path()
     ;;
     esac
     mkdir -p ${UNI_BUILD_ROOT}/build/ios-$ARCH/pkgconfig
+    
+    HOST_PKG_CONFIG_PATH=`command -v pkg-config`
+    if [ -z ${HOST_PKG_CONFIG_PATH} ]; then
+        echo -e "pkg-config command not found\n"
+        exit 1
+    fi
+    export HOST_PKG_CONFIG_PATH
     
     # xcrun 是调用iOS交叉编译工具的命令 通过xcrun --help 可以查看具体使用，后面跟具体的编译工具 如ar cc等等
     # 定义编译工具CC CXX AR等必须要用export进行声明，否则没有效果;-f代表输出对应工具的绝对路径;如下CC和CXX只要直接使用clang和clang++(否则编译mp3lame库会出错，原因未知:fixbug)
@@ -136,11 +151,13 @@ set_flags()
     # 8、PKG_CONFIG_PATH/PKG_CONFIG_LIBDIR;指定pkg-config工具所需要的.pc文件的搜索路径(备注：一般通过Autoconf生成的脚本都会根据此参数自动引入pkg-config)
     #
     # 备注：x264 ffmpeg等非Autoconf生成的configure配置脚本以及编译器参数，可能有些不同;CFLAGS可能不同的库有些一不一样
-    SYS_ROOT_CONF="--with-sysroot"
+    SYS_ROOT_CONF="--with-sysroot=${SDKPATH}"
     GAS_PL="gas-preprocessor.pl"
     if [ $lib = "x264" ];then
-        SYS_ROOT_CONF="--sysroot"
+        SYS_ROOT_CONF="--sysroot=${SDKPATH}"
         GAS_PL="$SOURCE/tools/gas-preprocessor.pl"
+    elif [ $lib = "fontconfig" ];then
+        SYS_ROOT_CONF=
     elif [ $lib = "fdk-aac" ];then
         CFLAGS="$CFLAGS -Wno-error=unused-command-line-argument-hard-error-in-future"
     else
@@ -193,13 +210,15 @@ real_do_compile()
         $CONFIGURE_FLAGS \
         --host=$HOST \
         --prefix=$PREFIX \
-        $SYS_ROOT_CONF=${SDKPATH} \
+        $SYS_ROOT_CONF  \
 
     make -j$(get_cpu_count) && make install || exit 1
     if [ $lib = "mp3lame" ];then
         create_mp3lame_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
         cp ${PREFIX}/lib/pkgconfig/*.pc ${PKG_CONFIG_LIBDIR} || exit 1
+    elif [ $lib = "fontconfig" ];then
+        create_fontconfig_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     else
         cp ./*.pc ${PKG_CONFIG_LIBDIR} || exit 1
     fi
@@ -248,6 +267,9 @@ do_compile_ass()
     fi
     
     local CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
+    if [ $USE_CORETEXT = "FALSE" ];then
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --disable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    fi
     real_do_compile "$CONFIGURE_FLAGS" "ass" $1
 }
 #编译freetype
@@ -267,6 +289,33 @@ do_compile_fribidi()
     fi
     local CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
     real_do_compile "$CONFIGURE_FLAGS" "fribidi" $1
+}
+#编译expact
+do_compile_expat()
+{
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --without-docbook --without-xmlwf "
+    real_do_compile "$CONFIGURE_FLAGS" "expat" $1
+}
+#编译fontconfig
+do_compile_fontconfig()
+{
+    if [[ ! -f $UNI_BUILD_ROOT/build/ios-$1/expat/lib/libexpat.a ]];then
+        echo "fontconfig dependency expat please set [expat]=TRUE "
+        exit 1
+    fi
+    
+    if [ $uname == "Linux" ];then
+        cd $UNI_BUILD_ROOT/build/forksource/fontconfig
+        autoreconf
+        cd -
+    fi
+    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
+    real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
 # 编译ffmpeg
 do_compile_ffmpeg()
@@ -374,6 +423,7 @@ do_compile_ffmpeg()
     ./configure $COMMON_FF_CFG_FLAGS \
         --sysroot=${SDKPATH} \
         --prefix=${FF_PREFIX} \
+        --pkg-config="${HOST_PKG_CONFIG_PATH}" \
         --arch="${TARGET_ARCH}" \
         --cpu="${TARGET_CPU}" \
         --ar="${AR}" \
@@ -383,7 +433,6 @@ do_compile_ffmpeg()
         --ranlib="${RANLIB}" \
         --strip="${STRIP}" \
         --extra-cflags="$FF_EXTRA_CFLAGS" \
-        --extra-cxxflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
         ${NEON_FLAG} \
         ${ARCH_OPTIONS} \

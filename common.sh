@@ -277,6 +277,33 @@ Libs: -L\${libdir} -lmp3lame
 Cflags: -I\${includedir}
 EOF
 }
+# 遇到问题：当以静态库方式引入fontconf到ffmpeg中时提示"pkg-conf fontconf not found"
+# 分析原因：fontconf自己生成的pc文件不包含expat库，最终导致了错误
+# 解决方案：自己定义fontconfig库的pc文件
+create_fontconfig_package_config() {
+    local pkg_path=$1
+    local prefix_path=$2
+    cat > "${pkg_path}/fontconfig.pc" << EOF
+prefix=${prefix_path}
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+sysconfdir=\${prefix}/etc
+localstatedir=\${prefix}/var
+PACKAGE=fontconfig
+confdir=\${sysconfdir}/fonts
+cachedir=\${localstatedir}/cache/\${PACKAGE}
+
+Name: Fontconfig
+Description: Font configuration and customization library
+Version: 2.13.92
+Requires:  freetype2 >= 21.0.15, expat >= 2.2.0
+Requires.private:
+Libs: -L\${libdir} -lfontconfig
+Libs.private:
+Cflags: -I\${includedir}
+EOF
+}
 create_zlib_system_package_config() {
     local SDK_PATH=$1
     local PKG_PATH=$2

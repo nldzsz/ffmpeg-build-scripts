@@ -28,10 +28,10 @@ export FF_ANDROID_API=21
 # 否则编译fdk-aac时会出现libtool执行错误,导致编译结束)
 # windows，linux，mac平台有各自对应的ndk版本下载地址 https://developer.android.google.cn/ndk/downloads
 #export NDK_PATH=C:/cygwin64/home/Administrator/android-ndk-r21b
-export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
+#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r17c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r19c
 #export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r20b
-#export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
+export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
 # 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，不然导入android使用时会出错
 export FF_COMPILE_SHARED=FALSE
@@ -41,8 +41,11 @@ export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Pyth
 
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 # 如果要开启drawtext滤镜，则必须要编译fribidi expat fontconfig freetype库;如果要开启subtitles滤镜，则还要编译ass库
+# 遇到问题：以静态库的方式引入android studio时 提示"undefined reference to xxxx"
+# 分析原因：此问题为偶然发现，以静态库方式导入可执行程序时(如果引用的库中又引用了其它库或者各个模块之间有相互引用时)那么就一定要注意连接顺序的问题，所以最后一定要按照如下顺序导入到android中(其中ffmpeg库的顺序也要固定)
+# libavformat.a libavcodec.a libavfilter.a  libavutil.a libswresample.a libswscale.a libass.a libfontconfig.a libexpat.a libfreetype.a libfribidi.a libmp3lame.a libx264.a
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
 )
 
 # 内部调试用
@@ -53,6 +56,28 @@ ENABLE_GPU=TRUE
 UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1
 #----------
+
+create_zlib_system_package_config() {
+    local tool_chain_path=$1
+    local pkg_path=$2
+    ZLIB_VERSION=$(grep '#define ZLIB_VERSION' ${tool_chain_path}/sysroot/usr/include/zlib.h | grep -Eo '\".*\"' | sed -e 's/\"//g')
+
+    cat > "${pkg_path}/zlib.pc" << EOF
+prefix=${tool_chain_path}/sysroot/usr
+exec_prefix=\${prefix}
+libdir=\${prefix}/usr/lib
+includedir=\${prefix}/include
+
+Name: zlib
+Description: zlib compression library
+Version: ${ZLIB_VERSION}
+
+Requires:
+Libs: -L\${libdir} -lz
+Cflags: -I\${includedir}
+EOF
+}
+
 # 配置交叉编译环境
 set_toolchain_path()
 {
@@ -163,12 +188,11 @@ set_toolchain_path()
                     --platform="android-$FF_ANDROID_API" \
                     --arch=$FF_ARCH_1   \
                     --toolchain=${FF_CROSS_PREFIX}-4.9
-                    
-                # 避免重复执行make-standalone-toolchain.sh指令
-                touch $FF_TOOLCHAIN_TOUCH;
-                echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
             fi
-            
+            # 避免重复执行make-standalone-toolchain.sh指令
+            mkdir -p $FF_TOOLCHAIN_PATH
+            touch $FF_TOOLCHAIN_TOUCH;
+            echo "$IJK_NDK_REL" >$FF_TOOLCHAIN_TOUCH
         fi
         
         if [ "$uname" == "Linux" ];then
@@ -208,7 +232,12 @@ set_toolchain_path()
     export RANLIB=${FF_CROSS_PREFIX}-ranlib
     export STRIP=${FF_CROSS_PREFIX}-strip
     export PKG_CONFIG_LIBDIR="${UNI_BUILD_ROOT}/build/android-$ARCH/pkgconfig"
+    export ZLIB_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/zlib.pc"
     mkdir -p $PKG_CONFIG_LIBDIR
+    
+    if [ ! -f ${ZLIB_PACKAGE_CONFIG_PATH} ]; then
+        create_zlib_system_package_config $FF_TOOLCHAIN_PATH $PKG_CONFIG_LIBDIR
+    fi
 }
 set_flags()
 {
@@ -307,6 +336,8 @@ real_do_compile()
         create_mp3lame_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
         cp ${PREFIX}/lib/pkgconfig/*.pc ${PKG_CONFIG_LIBDIR} || exit 1
+    elif [ $lib = "fontconfig" ];then
+        create_fontconfig_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     else
         cp ./*.pc ${PKG_CONFIG_LIBDIR} || exit 1
     fi
@@ -581,10 +612,8 @@ do_compile_ffmpeg()
         --ranlib="${RANLIB}" \
         --strip="${STRIP}" \
         --extra-cflags="$FF_EXTRA_CFLAGS" \
-        --extra-cxxflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
         ${NEON_FLAG} \
-        ${ARCH_OPTIONS} \
         --ln_s="cp -rf" \
 
     make -j$(get_cpu_count) && make install || exit 1
@@ -694,6 +723,7 @@ if [ -z "$FF_TARGET" ]; then
         compile_external_lib_ifneed $ARCH
         # 编译ffmpeg
         rm -rf build/android-$ARCH/ffmpeg
+        rm -rf build/android-universal
         do_compile_ffmpeg $ARCH
     done
     
