@@ -49,7 +49,7 @@ export LIBFLAGS=(
 )
 
 # 内部调试用
-export INTERNAL_DEBUG=FALSE
+export INTERNAL_DEBUG=TRUE
 # 开启硬编解码
 ENABLE_GPU=TRUE
 
@@ -552,7 +552,6 @@ do_compile_ffmpeg()
     FF_SOURCE=$FF_BUILD_ROOT/build/forksource/$FF_BUILD_NAME
     FF_PREFIX=$FF_BUILD_ROOT/build/android-$FF_ARCH/$FF_BUILD_NAME
     if [ $INTERNAL_DEBUG = "TRUE" ];then
-        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$FF_BUILD_NAME2
         COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --disable-optimizations --enable-debug --disable-small";
     else
         COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-optimizations --disable-debug --enable-small"
@@ -680,7 +679,6 @@ do_lipo_all () {
                 mkdir -p $uni_inc_dir
                 cp -rf $UNI_BUILD_ROOT/build/android-arm64/$lib/include $uni_inc_dir
                 if [ $INTERNAL_DEBUG = "TRUE" ];then
-                    FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$FF_BUILD_NAME2
                     cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$ARCH2/lib$lib.$TYPE
                 else
                     cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE $uni_lib_dir/lib$lib.$TYPE
@@ -703,7 +701,12 @@ do_lipo_all () {
             uni_lib_dir=$UNI_BUILD_ROOT/build/android-universal/$ARCH2/all-$TYPE
             
             mkdir -p $uni_lib_dir
-            cp $UNI_BUILD_ROOT/build/android-$ARCH/ffmpeg/lib/$lib.$TYPE $uni_lib_dir/$lib.$TYPE
+            
+            if [ $INTERNAL_DEBUG = "TRUE" ];then
+                cp $UNI_BUILD_ROOT/build/android-$ARCH/ffmpeg/lib/$lib.$TYPE /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$ARCH2/$lib.$TYPE
+            else
+                cp $UNI_BUILD_ROOT/build/android-$ARCH/ffmpeg/lib/$lib.$TYPE $uni_lib_dir/$lib.$TYPE
+            fi
         done
     done
 
