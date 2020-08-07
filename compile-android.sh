@@ -34,7 +34,7 @@ export FF_ANDROID_API=21
 export NDK_PATH=/Users/apple/devoloper/mine/android/android-ndk-r21b
 #export NDK_PATH=/home/zsz/android-ndk-r20b
 # 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，不然导入android使用时会出错
-export FF_COMPILE_SHARED=FALSE
+export FF_COMPILE_SHARED=TRUE
 
 # windows下统一用bat脚本来生成独立工具编译目录(因为低于18的ndk库中的make_standalone_toolchain.py脚本在cygwin中执行会出错)
 export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Python38-32/python.exe
