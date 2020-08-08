@@ -304,6 +304,7 @@ Libs.private:
 Cflags: -I\${includedir}
 EOF
 }
+# zlib是一个通用的压缩库，一般系统都会集成
 create_zlib_system_package_config() {
     local SDK_PATH=$1
     local PKG_PATH=$2
@@ -325,6 +326,7 @@ Libs: -L\${libdir} -lz
 Cflags: -I\${includedir}
 EOF
 }
+# libiconv是一个字符编码转换的库，比如utf8到Unicode的转换，一般系统都有集成
 create_libiconv_system_package_config() {
     local SDK_PATH=$1
     local PKG_PATH=$2
@@ -345,6 +347,7 @@ Libs: -L\${libdir} -liconv -lcharset
 Cflags: -I\${includedir}
 EOF
 }
+# bzip2是另一个压缩库，效率比zlib高，一般系统都会集成
 create_bzip2_system_package_config() {
     local SDK_PATH=$1
     local PKG_PATH=$2
@@ -365,6 +368,7 @@ Libs: -L\${libdir} -lbz2
 Cflags: -I\${includedir}
 EOF
 }
+# libuuid是一个开源的用于生成UUID(Universally Unique Identifier，通用唯一标识符)的库
 create_libuuid_system_package_config() {
     local SDK_PATH=$1
     local PKG_PATH=$2
