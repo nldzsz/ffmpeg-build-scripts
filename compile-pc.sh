@@ -19,12 +19,14 @@
 #----------
 set -e
 # 内部调试用
-export INTERNAL_DEBUG=TRUE
+export INTERNAL_DEBUG=FALSE
 . ./common.sh
 
 #当前Linux/Windows/Mac操作系统的位数，如果是64位则填写x86_64，32位则填写x86
 export FF_PC_ARCH="x86_64"
 
+# 编译动态库，默认关闭;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个
+export FF_COMPILE_SHARED=FALSE
 # libass使用Coretext还是fontconfig;TRUE代表使用CORETEXT,FALSE代表使用fontconfig
 export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
@@ -64,6 +66,10 @@ set_toolchain_path()
     local ARCH=$1
     mkdir -p ${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
     export PKG_CONFIG_PATH=${UNI_BUILD_ROOT}/build/$FF_PLATFORM_TARGET-$ARCH/pkgconfig
+    export STATIC_DYLMIC="--enable-static --disable-shared"
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+    export STATIC_DYLMIC="--disable-static --enable-shared"
+    fi
 }
 
 real_do_compile()
@@ -105,14 +111,14 @@ real_do_compile()
 #编译x264
 do_compile_x264()
 {	
-	CONFIGURE_FLAGS="--enable-static --enable-shared --enable-pic --disable-cli --enable-strip"
+	CONFIGURE_FLAGS="--enable-pic --disable-cli --enable-strip $STATIC_DYLMIC"
 	real_do_compile "$CONFIGURE_FLAGS" "x264"
 }
 
 #编译fdk-aac
 do_compile_fdk_aac()
 {
-	CONFIGURE_FLAGS="--enable-static --enable-shared --with-pic "
+	local CONFIGURE_FLAGS="--with-pic $STATIC_DYLMIC"
 	real_do_compile "$CONFIGURE_FLAGS" "fdk-aac"
 }
 #编译mp3lame
@@ -124,7 +130,7 @@ do_compile_mp3lame()
 	SOURCE=./build/forksource/mp3lame/include/libmp3lame.sym
 	$OUR_SED "/lame_init_old/d" $SOURCE
 	
-	CONFIGURE_FLAGS="--enable-static --enable-shared --disable-frontend "
+	CONFIGURE_FLAGS="--disable-frontend $STATIC_DYLMIC"
 	real_do_compile "$CONFIGURE_FLAGS" "mp3lame"
 }
 #编译ass
@@ -137,16 +143,16 @@ do_compile_ass()
         cd -
     fi
     
-    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --enable-shared --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
-    if [ $USE_CORETEXT = "FALSE" ];then
-    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --disable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock $STATIC_DYLMIC --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "
+    if [[ $USE_CORETEXT = "TRUE" && $name = "Darwin" ]];then
+    CONFIGURE_FLAGS="--with-pic --disable-libtool-lock $STATIC_DYLMIC --disable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --enable-coretext --disable-require-system-font-provider --disable-profile "
     fi
     real_do_compile "$CONFIGURE_FLAGS" "ass"
 }
 #编译freetype
 do_compile_freetype()
 {
-    CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap --enable-static --enable-shared "
+    CONFIGURE_FLAGS="--with-pic --with-zlib --without-png --without-harfbuzz --without-bzip2 --without-fsref --without-quickdraw-toolbox --without-quickdraw-carbon --without-ats --disable-fast-install --disable-mmap $STATIC_DYLMIC "
     real_do_compile "$CONFIGURE_FLAGS" "freetype"
 }
 #编译fribidi
@@ -158,7 +164,7 @@ do_compile_fribidi()
         ./autogen.sh
         cd -
     fi
-    CONFIGURE_FLAGS="--with-pic --enable-static --enable-shared --disable-fast-install --disable-debug --disable-deprecated "
+    CONFIGURE_FLAGS="--with-pic $STATIC_DYLMIC --disable-fast-install --disable-debug --disable-deprecated "
     real_do_compile "$CONFIGURE_FLAGS" "fribidi"
 }
 #编译expact
@@ -169,7 +175,7 @@ do_compile_expat()
         autoreconf
         cd -
     fi
-    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --without-docbook --without-xmlwf "
+    local CONFIGURE_FLAGS="--with-pic $STATIC_DYLMIC --disable-fast-install --without-docbook --without-xmlwf "
     real_do_compile "$CONFIGURE_FLAGS" "expat" $1
 }
 #编译fontconfig
@@ -180,7 +186,7 @@ do_compile_fontconfig()
         autoreconf
         cd -
     fi
-    local CONFIGURE_FLAGS="--with-pic --enable-static --disable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
+    local CONFIGURE_FLAGS="--with-pic $STATIC_DYLMIC --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
     real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
 
@@ -228,9 +234,6 @@ do_compile_ffmpeg()
 	
 	FF_SOURCE=$FF_BUILD_ROOT/build/forksource/$FF_BUILD_NAME
 	FF_PREFIX=$FF_BUILD_ROOT/build/$FF_PC_TARGET-$FF_PC_ARCH/$FF_BUILD_NAME
-    if [ $INTERNAL_DEBUG = "TRUE" ];then
-        FF_PREFIX=/Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
-    fi
 	mkdir -p $FF_PREFIX
 
 	# 开始编译
@@ -248,6 +251,10 @@ do_compile_ffmpeg()
     
 	#导入ffmpeg的外部库，这里指定外部库的路径，配置参数则转移到了config/module.sh中
 	EXT_ALL_LIBS=
+    TYPE=a
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        TYPE=so
+    fi
 	#${#array[@]}获取数组长度用于循环
 	for(( i=$x264;i<${#LIBS[@]};i++))
 	do
@@ -262,7 +269,7 @@ do_compile_ffmpeg()
             FF_EXTRA_CFLAGS+=" $(pkg-config --cflags $lib_pkg)"
             FF_EXTRA_LDFLAGS+=" $(pkg-config --libs --static $lib_pkg)"
             
-            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib.a"
+            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib*.$TYPE"
         fi
 	done
 	FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"
@@ -305,6 +312,7 @@ do_compile_ffmpeg()
         --prefix=$FF_PREFIX \
         --extra-cflags="$FF_EXTRA_CFLAGS" \
         --extra-ldflags="$FF_EXTRA_LDFLAGS" \
+        $STATIC_DYLMIC  \
     
 	make && make install
 	
@@ -313,6 +321,11 @@ do_compile_ffmpeg()
 	do
 		cp -f $lib $FF_PREFIX/lib
 	done
+ 
+    if [ $INTERNAL_DEBUG = "TRUE" ];then
+        cp -rf $FF_PREFIX/lib /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-mac/ffmpeglib
+    fi
+    
 	cd -
 }
 
