@@ -64,7 +64,7 @@ All_Resources[fdkaac]=https://jaist.dl.sourceforge.net/project/opencore-amr/fdk-
 #mp3lame
 All_Resources[mp3lame]=https://jaist.dl.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
 # fribidi
-All_Resources[fribidi]=https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.10
+All_Resources[fribidi]=https://github.com/fribidi/fribidi/releases/download/v1.0.10/fribidi-1.0.10.tar.xz
 # freetype
 All_Resources[freetype]=https://mirror.yongbok.net/nongnu/freetype/freetype-2.10.2.tar.gz
 # expat
@@ -137,7 +137,14 @@ function wget_down_lib_sources_ifneeded() {
         if [ ! -d extra/${LIBS[$lib]} ] && [ ${LIBFLAGS[$lib]} == "TRUE" ];then
             UPSTREAM=${All_Resources[$lib]}
             echo "== pull ${LIBS[$lib]} base begin. =="
-            . $TOOLS/curl-repo-base.sh $UPSTREAM extra ${LIBS[$lib]}
+            if [ ${LIBS[$lib]} = "fribidi" ];then
+                # 遇到问题：fribidi编译时提示"make[3]: *** [c2man.stamp] Error 1"错误。
+                # 分析原因：有两个版本，一个是已经生成doc的，一个是没有的，后者下载的源码编译就没问题即(但是从https://github.com/fribidi/fribidi/releases/download/v1.0.10/fribidi-1.0.10.tar.xz)
+                # 而xz压缩包的解压方式和gz包不一样，故需要区分开
+                . $TOOLS/curl-repo-base-xz.sh $UPSTREAM extra ${LIBS[$lib]}
+            else
+                . $TOOLS/curl-repo-base.sh $UPSTREAM extra ${LIBS[$lib]}
+            fi
             echo "== pull ${LIBS[$lib]} base finish =="
         fi
     done
