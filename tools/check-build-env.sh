@@ -52,18 +52,19 @@ if [[ ! `which yasm` ]] && [[ $FF_PLATFORM_TARGET != "ios" && $FF_PLATFORM_TARGE
     echo -e "check yasm ok......"
 fi
 
-if [[ $uname = "Darwin" || $uname = "Linux" ]]  && [[ ! `which autoconf` ]]; then
-    # Mac 平台 autoconf用于基于GNU的make生成工具，有些库不支持Libtool;
+if [[ ! `which autoconf` || ! `which gperf` ]]; then
+    # autotools工具集，autoconf用于基于GNU的make生成工具，有些库不支持Libtool;
+    # gperf 主要用于fontconfig库的编译
     echo "check autoconf env......"
     echo "autoconf not found begin install....."
     
     
     if [[ "$(uname)" == "Darwin" ]];then
         # Mac平台
-        brew install autoconf || exit 1
+        brew install autoconf automake gperf pkg-config || exit 1
     elif [[ "$(uname)" == "Linux" ]];then
         # Linux平台平台
-        sudo apt-get install autoconf
+        sudo apt-get install -y pkg-config autoconf automake autotools-dev libtool libev-dev gperf
         #result=$(echo `autoconf --version` | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/' )
         #if [[ "$result" < "1.16.1" ]];then
         #    sudo apt-get --purge remove automake
