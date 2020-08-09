@@ -49,7 +49,7 @@ export LIBFLAGS=(
 )
 
 # 内部调试用
-export INTERNAL_DEBUG=TRUE
+export INTERNAL_DEBUG=FALSE
 # 开启硬编解码
 ENABLE_GPU=TRUE
 
@@ -411,13 +411,6 @@ do_compile_ass()
     if [ ! -f $pkgpath/fribidi.pc ];then
         echo "libass dependency fribidi please set [fribidi]=TRUE "
         exit 1
-    fi
-    
-    if [ ! -f $UNI_BUILD_ROOT/build/forksource/ass/configure ];then
-        local SOURCE=$UNI_BUILD_ROOT/build/forksource/ass
-        cd $SOURCE
-        ./autogen.sh
-        cd -
     fi
     
     local CONFIGURE_FLAGS="--with-pic --disable-libtool-lock --enable-static --disable-shared --enable-fontconfig --disable-harfbuzz --disable-fast-install --disable-test --disable-profile --disable-coretext "

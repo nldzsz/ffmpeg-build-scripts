@@ -72,7 +72,7 @@ All_Resources[expat]=https://github.com/libexpat/libexpat/releases/download/R_2_
 # fontconfig
 All_Resources[fontconfig]=https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.13.92.tar.gz
 # libass
-All_Resources[ass]=https://codeload.github.com/libass/libass/tar.gz/0.14.0
+All_Resources[ass]=https://github.com/libass/libass/releases/download/0.14.0/libass-0.14.0.tar.gz
 
 # 外部库引入ffmpeg时的配置参数
 # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
