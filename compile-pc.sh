@@ -32,11 +32,11 @@ export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 if [ $uname = "Darwin" ] && [ $USE_CORETEXT = "TRUE" ];then
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE [openssl]=TRUE
 )
 else
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=TRUE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=TRUE
 )
 fi
 
@@ -90,11 +90,21 @@ real_do_compile()
     make distclean
     set -e
     
-	./configure \
-        ${CONFIGURE_FLAGS} \
-        --prefix=$PREFIX
+    if [ $lib = "ssl" ];then
+        ./Configure \
+            ${CONFIGURE_FLAGS} \
+            darwin64-x86_64-cc \
+            --prefix=$PREFIX
+        
+        make -j$(get_cpu_count) && make install_sw || exit 1
+    else
+        ./configure \
+            ${CONFIGURE_FLAGS} \
+            --prefix=$PREFIX
+            
+        make -j$(get_cpu_count) && make install || exit 1
+    fi
 
-	make -j$(get_cpu_count) && make install || exit 1
 	if [ $lib = "mp3lame" ];then
         create_mp3lame_package_config "${PKG_CONFIG_PATH}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
@@ -209,6 +219,16 @@ compile_external_lib_ifneed()
         fi
     done;
 }
+#编译openssl
+do_compile_ssl()
+{
+    local CONFIGURE_FLAGS="zlib-dynamic no-shared "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="zlib-dynamic no-static-engine "
+    fi
+    
+    real_do_compile "$CONFIGURE_FLAGS" "ssl" $1
+}
 
 do_compile_ffmpeg()
 {
@@ -269,7 +289,7 @@ do_compile_ffmpeg()
             FF_EXTRA_CFLAGS+=" $(pkg-config --cflags $lib_pkg)"
             FF_EXTRA_LDFLAGS+=" $(pkg-config --libs --static $lib_pkg)"
             
-            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib$lib*.$TYPE"
+            EXT_ALL_LIBS="$EXT_ALL_LIBS $lib_lib_dir/lib*.$TYPE"
         fi
 	done
 	FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS $FF_CFG_FLAGS"

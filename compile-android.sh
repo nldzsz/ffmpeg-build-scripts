@@ -306,6 +306,7 @@ set_flags()
     export HOST
     export CFLAGS
     export CXXFLAGS
+    export CPPFLAGS
     export LDFLAGS
     export SYS_ROOT_CONF
 }

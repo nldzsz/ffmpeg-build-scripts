@@ -59,7 +59,7 @@ LIBS_PKGS[openssl]=openssl
 
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
 # xrz:todo 源码已经放入脚本中，默认不需要额外下载 2020-08-11
-local pull_from_remote=FALSE
+pull_from_remote=FALSE
 # ffmpeg
 All_Resources[ffmpeg]=https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n4.2
 # x264
@@ -164,7 +164,7 @@ function tar_lib_sources_ifneeded() {
     for lib in $(echo ${!All_Resources[*]})
     do
         
-        if [ ! -d extra/${LIBS[$lib]} ] && [ ${LIBFLAGS[$lib]} == "TRUE" ] ];then
+        if [ ! -d extra/${LIBS[$lib]} ] && [ ${LIBFLAGS[$lib]} == "TRUE" ];then
             UPSTREAM=${All_Resources[$lib]}
             echo "== tar ${LIBS[$lib]} base begin. =="
             # xrz todo:有人提议将源码也放入脚本，因为有些源码是国外网站，比较难下载，这里将源码采用xz压缩，源码大小也大大降低
@@ -228,7 +228,7 @@ function prepare_all() {
     
     if [ $pull_from_remote = "FALSE" ];then
         # 从本地解压源码
-        wget_down_lib_sources_ifneeded
+        tar_lib_sources_ifneeded
     else
         # 先下载取原始的源码
         wget_down_lib_sources_ifneeded
