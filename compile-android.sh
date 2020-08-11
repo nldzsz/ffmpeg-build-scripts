@@ -45,7 +45,7 @@ export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Pyth
 # 分析原因：此问题为偶然发现，以静态库方式导入可执行程序时(如果引用的库中又引用了其它库或者各个模块之间有相互引用时)那么就一定要注意连接顺序的问题，所以最后一定要按照如下顺序导入到android中(其中ffmpeg库的顺序也要固定)
 # libavformat.a libavcodec.a libavfilter.a  libavutil.a libswresample.a libswscale.a libass.a libfontconfig.a libexpat.a libfreetype.a libfribidi.a libmp3lame.a libx264.a
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=TRUE
 )
 
 # 内部调试用
@@ -106,6 +106,7 @@ set_toolchain_path()
     
     FF_SYSROOT=""
     FF_CROSS_PREFIX=
+    FF_TOOLCHAIN_PATH_EN=
     FF_TOOLCHAIN_PATH=$WORK_PATH/build/forksource/android-toolchain-$FF_ARCH
     
     local FF_CC_CPP_PREFIX=
@@ -168,9 +169,10 @@ set_toolchain_path()
         FF_CPP=clang++.cmd
 
         FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
-        FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+#        FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
         FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
         FF_HOST_OS=windows-x86_64
+        FF_TOOLCHAIN_PATH_EN=$FF_TOOLCHAIN_PATH/bin
     else
         # 其他系统 mac和linux
         if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
@@ -205,17 +207,21 @@ set_toolchain_path()
         FF_CPP=clang++
         if [[ "$IJK_NDK_REL" < "21" ]]; then
             FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
-            FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+#            FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
             FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
+            FF_TOOLCHAIN_PATH_EN=$FF_TOOLCHAIN_PATH/bin
         else
             # ndk 19以后则直接使用ndk原来的目录即可;而且FF_SYSROOT不需要用--sysroot来指定了，否则编译会出错
             FF_SYSROOT=""
-            FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CROSS_PREFIX}
-            FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CC_CPP_PREFIX}
+#            FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CROSS_PREFIX}
+#            FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CC_CPP_PREFIX}
+            FF_CC_CPP_PREFIX=$FF_CC_CPP_PREFIX
+            FF_TOOLCHAIN_PATH_EN=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin
         fi
 
     fi
-
+    
+    export PATH=$FF_TOOLCHAIN_PATH_EN:$PATH
     export FF_SYSROOT
     export FF_CROSS_PREFIX
     # 编译缓存，可以加快编译
@@ -264,7 +270,7 @@ set_flags()
         echo "ext unsurported platform $ARCH !...."
         exit 1
     fi
-    CFLAGS="$CFLAGS -fno-integrated-as -fstrict-aliasing -fPIC -D__ANDROID_API__=${FF_ANDROID_API}"
+    CFLAGS="$CFLAGS -fno-integrated-as -fstrict-aliasing -fPIC -DANDROID -D__ANDROID_API__=${FF_ANDROID_API}"
     
     CFLAGS="$CFLAGS $LL_CFLAGS"
     CPPFLAGS="${CFLAGS}"
@@ -325,13 +331,40 @@ real_do_compile()
     make distclean
     set -e
     
-    ./configure \
-        $CONFIGURE_FLAGS \
-        --host=$HOST \
-        --prefix=$PREFIX \
-        $SYS_ROOT_CONF \
+    if [ $lib = "ssl" ];then
+        export ANDROID_NDK_HOME=$NDK_PATH
+        local arch_flags=
+        if [ $ARCH = "x86_64" ];then
+            arch_flags=android-x86_64
+        elif [ $ARCH = "armv7a" ];then
+            arch_flags=android-arm
+        elif [ $ARCH = "arm64" ];then
+            arch_flags=android-arm64
+        else
+            echo "ext unsurported platform $ARCH !...."
+            exit 1
+        fi
+        
+        ./Configure \
+            $CONFIGURE_FLAGS \
+            $arch_flags \
+            --prefix=$PREFIX
+        
+        # 修改编译android动态库时生成的后缀
+        $OUR_SED 's/SHLIB_EXT=\.so\.\$(SHLIB_VERSION_NUMBER)/SHLIB_EXT=\.so/g' Makefile
+        
+        make -j$(get_cpu_count) && make install_sw || exit 1
+        
+    else
+        ./configure \
+            $CONFIGURE_FLAGS \
+            --host=$HOST \
+            --prefix=$PREFIX \
+            $SYS_ROOT_CONF
+            
+        make -j$(get_cpu_count) && make install || exit 1
+    fi
 
-    make -j$(get_cpu_count) && make install || exit 1
     if [ $lib = "mp3lame" ];then
         create_mp3lame_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
@@ -483,6 +516,16 @@ do_compile_fontconfig()
     fi
     real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
 }
+#编译openssl
+do_compile_ssl()
+{
+    local CONFIGURE_FLAGS="zlib-dynamic no-shared "
+    if [ $FF_COMPILE_SHARED = "TRUE" ];then
+        CONFIGURE_FLAGS="zlib-dynamic no-static-engine "
+    fi
+    
+    real_do_compile "$CONFIGURE_FLAGS" "ssl" $1
+}
 # 编译ffmpeg
 do_compile_ffmpeg()
 {
@@ -583,7 +626,7 @@ do_compile_ffmpeg()
     done
     
     echo ""
-    echo "build ffmpeg $FF_ARCH........"
+    echo "build ffmpeg $FF_ARCH........$FF_SYSROOT"
     echo "FF_CFG_FLAGS $COMMON_FF_CFG_FLAGS"
     
     cd $FF_SOURCE
@@ -672,9 +715,9 @@ do_lipo_all () {
                 mkdir -p $uni_inc_dir
                 cp -rf $UNI_BUILD_ROOT/build/android-arm64/$lib/include $uni_inc_dir
                 if [ $INTERNAL_DEBUG = "TRUE" ];then
-                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$ARCH2/lib$lib.$TYPE
+                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib*.$TYPE /Users/apple/devoloper/mine/ffmpeg/ffmpeg-demo/demo-android/app/src/main/jniLibs/$ARCH2
                 else
-                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib$lib.$TYPE $uni_lib_dir/lib$lib.$TYPE
+                    cp $UNI_BUILD_ROOT/build/android-$ARCH/$lib/lib/lib*.$TYPE $uni_lib_dir
                 fi
             fi
         done

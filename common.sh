@@ -31,6 +31,7 @@ freetype=5
 expat=6
 fontconfig=7
 ass=8
+openssl=9
 
 # 各个源码的名字
 LIBS[ffmpeg]=ffmpeg
@@ -42,6 +43,7 @@ LIBS[freetype]=freetype
 LIBS[expat]=expat
 LIBS[fontconfig]=fontconfig
 LIBS[ass]=ass
+LIBS[openssl]=ssl
 
 # 各个源码对应的pkg-config中.pc的名字
 LIBS_PKGS[ffmpeg]=ffmpeg
@@ -53,8 +55,11 @@ LIBS_PKGS[freetype]=freetype2
 LIBS_PKGS[expat]=expat
 LIBS_PKGS[fontconfig]=fontconfig
 LIBS_PKGS[ass]=libass
+LIBS_PKGS[openssl]=openssl
 
 # 默认情况下会检测extra目录下是否有对应的源码，如果没有且要编译这些库，那么将到这里对应的地址去下载
+# xrz:todo 源码已经放入脚本中，默认不需要额外下载 2020-08-11
+local pull_from_remote=FALSE
 # ffmpeg
 All_Resources[ffmpeg]=https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n4.2
 # x264
@@ -73,6 +78,8 @@ All_Resources[expat]=https://github.com/libexpat/libexpat/releases/download/R_2_
 All_Resources[fontconfig]=https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.13.92.tar.gz
 # libass
 All_Resources[ass]=https://github.com/libass/libass/releases/download/0.14.0/libass-0.14.0.tar.gz
+# openssl
+All_Resources[openssl]=https://www.openssl.org/source/openssl-1.1.1d.tar.gz
 
 # 外部库引入ffmpeg时的配置参数
 # 这里必须要--enable-encoder --enable-decoder的方式开启libx264，libfdk_aac，libmp3lame
@@ -87,6 +94,7 @@ LIBS_PARAM[freetype]="--enable-filter=drawtext --enable-libfreetype --enable-mux
 LIBS_PARAM[expat]=""
 LIBS_PARAM[fontconfig]="--enable-libfontconfig"
 LIBS_PARAM[ass]="--enable-libass --enable-filter=subtitles"
+LIBS_PARAM[openssl]="--enable-openssl --enable-protocol=http --enable-protocol=https --enable-protocol=hls --enable-nonfree"
 export LIBS_PARAM
 
 # =====自定义字典实现======== #
@@ -149,6 +157,22 @@ function wget_down_lib_sources_ifneeded() {
         fi
     done
 }
+# tar命令解压本地源码
+function tar_lib_sources_ifneeded() {
+        
+    mkdir -p extra
+    for lib in $(echo ${!All_Resources[*]})
+    do
+        
+        if [ ! -d extra/${LIBS[$lib]} ] && [ ${LIBFLAGS[$lib]} == "TRUE" ] ];then
+            UPSTREAM=${All_Resources[$lib]}
+            echo "== tar ${LIBS[$lib]} base begin. =="
+            # xrz todo:有人提议将源码也放入脚本，因为有些源码是国外网站，比较难下载，这里将源码采用xz压缩，源码大小也大大降低
+            . $TOOLS/local-tar-xz.sh $UPSTREAM extra ${LIBS[$lib]}
+            echo "== tar ${LIBS[$lib]} base finish =="
+        fi
+    done
+}
 
 # $1 代表平台 armv5 arm64...
 # $2 代表库的名称 ffmpeg x264
@@ -202,8 +226,13 @@ function prepare_all() {
     # 检查环境
     check_build_env
     
-    # 先下载取原始的源码
-    wget_down_lib_sources_ifneeded
+    if [ $pull_from_remote = "FALSE" ];then
+        # 从本地解压源码
+        wget_down_lib_sources_ifneeded
+    else
+        # 先下载取原始的源码
+        wget_down_lib_sources_ifneeded
+    fi
     
     # 代表从第一个参数之后开始的所有参数
     for lib in $(echo ${!All_Resources[*]})
