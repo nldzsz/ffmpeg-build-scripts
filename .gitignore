@@ -11,7 +11,8 @@
 *mac/forksource/
 mac-source-xcode/
 DerivedData/
-extra/
+extra/*
+!extra/*tar.xz
 build/
 */ios/*arm64/
 */ios/*x86_64/
