@@ -32,11 +32,11 @@ export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 if [ $uname = "Darwin" ] && [ $USE_CORETEXT = "TRUE" ];then
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE [openssl]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE [openssl]=FALSE
 )
 else
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=FALSE
 )
 fi
 

@@ -21,6 +21,7 @@ set -e
 # 通过. xx.sh的方式执行shell脚本，变量会被覆盖
 . ./common.sh
 
+#export FF_ALL_ARCHS_ANDROID="armv7a arm64 x86_64"
 export FF_ALL_ARCHS_ANDROID="armv7a arm64"
 # 编译的API级别 (最小5.0以上系统)
 export FF_ANDROID_API=21
@@ -45,16 +46,17 @@ export WIN_PYTHON_PATH=C:/Users/Administrator/AppData/Local/Programs/Python/Pyth
 # 分析原因：此问题为偶然发现，以静态库方式导入可执行程序时(如果引用的库中又引用了其它库或者各个模块之间有相互引用时)那么就一定要注意连接顺序的问题，所以最后一定要按照如下顺序导入到android中(其中ffmpeg库的顺序也要固定)
 # libavformat.a libavcodec.a libavfilter.a  libavutil.a libswresample.a libswscale.a libass.a libfontconfig.a libexpat.a libfreetype.a libfribidi.a libmp3lame.a libx264.a
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=FALSE [freetype]=FALSE [expat]=FALSE [fontconfig]=FALSE [ass]=FALSE [openssl]=FALSE
 )
 
 # 内部调试用
 export INTERNAL_DEBUG=FALSE
-# 开启硬编解码
+# 开启硬解码
 ENABLE_GPU=TRUE
 
 UNI_BUILD_ROOT=`pwd`
 FF_TARGET=$1
+ORG_PATH=`echo $PATH`
 #----------
 
 create_zlib_system_package_config() {
@@ -84,7 +86,7 @@ set_toolchain_path()
     local FF_ARCH=$1
     local IJK_NDK_REL=$(grep -o '^Pkg\.Revision.*=[0-9]*.*' $NDK_PATH/source.properties 2>/dev/null | sed 's/[[:space:]]*//g' | cut -d "=" -f 2)
     # 开始编译 pwd代表的执行该脚本脚本的所在目录(不一定是该脚本所在目录)
-    export WORK_PATH=`pwd`
+    local WORK_PATH=`pwd`
     case "$uname" in
         Darwin)
             export FF_MAKE_FLAGS=-j`sysctl -n machdep.cpu.thread_count`
@@ -106,14 +108,13 @@ set_toolchain_path()
     
     FF_SYSROOT=""
     FF_CROSS_PREFIX=
-    FF_TOOLCHAIN_PATH_EN=
-    FF_TOOLCHAIN_PATH=$WORK_PATH/build/forksource/android-toolchain-$FF_ARCH
+    FF_CC_CPP_PREFIX=
+    FF_HOST_OS=
+    FF_CC=gcc
+    FF_CPP=g++
     
-    local FF_CC_CPP_PREFIX=
+    local FF_TOOLCHAIN_PATH=$WORK_PATH/build/forksource/android-toolchain-$FF_ARCH
     local FF_ARCH_1=arm
-    local FF_CC=gcc
-    local FF_CPP=g++
-    local FF_HOST_OS=
     if [ "$FF_ARCH" = "armv7a" ]; then
         FF_ARCH_1=arm
         FF_CROSS_PREFIX=arm-linux-androideabi
@@ -122,6 +123,10 @@ set_toolchain_path()
         FF_ARCH_1=arm64
         FF_CROSS_PREFIX=aarch64-linux-android
         FF_CC_CPP_PREFIX=aarch64-linux-android$FF_ANDROID_API
+    elif [ "$FF_ARCH" = "x86_64" ]; then
+        FF_ARCH_1=x86_64
+        FF_CROSS_PREFIX=x86_64-linux-android
+        FF_CC_CPP_PREFIX=x86_64-linux-android$FF_ANDROID_API
     else
         echo "unsurport platform !"
         exit 1
@@ -138,11 +143,7 @@ set_toolchain_path()
         echo ""
     fi
 
-    # 遇到问题：cygwin编译x264时环境变量不起作用。
-    # 分析原因：对于cyg编译工具的PATH环境变量，x264的编译脚本无法识别C:这样的盘符(它用:/cygdrive/c来表示C盘)
-    # 解决方案：直接指定AR，CC，CPP的绝对路径
     # 创建独立工具链 参考https://developer.android.com/ndk/guides/standalone_toolchain
-    #export PATH=$FF_TOOLCHAIN_PATH/bin/:$PATH
     if [[ "$uname" == CYGWIN_NT-* ]]; then
         
         if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
@@ -167,12 +168,10 @@ set_toolchain_path()
         # 定义cyg的C编译器和CPP编译器
         FF_CC=clang.cmd
         FF_CPP=clang++.cmd
-
         FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
-#        FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+        FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
         FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
         FF_HOST_OS=windows-x86_64
-        FF_TOOLCHAIN_PATH_EN=$FF_TOOLCHAIN_PATH/bin
     else
         # 其他系统 mac和linux
         if [ "$FF_SAVE_NDK_VERSION" != "$IJK_NDK_REL" ]; then
@@ -207,36 +206,16 @@ set_toolchain_path()
         FF_CPP=clang++
         if [[ "$IJK_NDK_REL" < "21" ]]; then
             FF_SYSROOT=$FF_TOOLCHAIN_PATH/sysroot
-#            FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
+            FF_CROSS_PREFIX=$FF_TOOLCHAIN_PATH/bin/${FF_CROSS_PREFIX}
             FF_CC_CPP_PREFIX=$FF_CROSS_PREFIX
-            FF_TOOLCHAIN_PATH_EN=$FF_TOOLCHAIN_PATH/bin
         else
             # ndk 19以后则直接使用ndk原来的目录即可;而且FF_SYSROOT不需要用--sysroot来指定了，否则编译会出错
             FF_SYSROOT=""
-#            FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CROSS_PREFIX}
-#            FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CC_CPP_PREFIX}
-            FF_CC_CPP_PREFIX=$FF_CC_CPP_PREFIX
-            FF_TOOLCHAIN_PATH_EN=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin
+            FF_CROSS_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CROSS_PREFIX}
+            FF_CC_CPP_PREFIX=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin/${FF_CC_CPP_PREFIX}
         fi
-
     fi
     
-    export PATH=$FF_TOOLCHAIN_PATH_EN:$PATH
-    export FF_SYSROOT
-    export FF_CROSS_PREFIX
-    # 编译缓存，可以加快编译
-    #export CC="ccache ${FF_CROSS_PREFIX}-gcc"
-    # fixbug:ndk20版本之后，预编译器cpp已经内置到CC中了，所以如果这里再指定会出现找不到cpp的错误
-    #export CPP=${FF_CROSS_PREFIX}-cpp
-    export AR=${FF_CROSS_PREFIX}-ar
-    # 开启该选项后x264的编译选项 -DSTAK_ALIGNMENT=会加入到AS中，导致编译失败。如果没有定义这个，
-    # -DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
-    #export AS=${FF_CROSS_PREFIX}-as
-    export CC=${FF_CC_CPP_PREFIX}-$FF_CC
-    export CXX=${FF_CC_CPP_PREFIX}-$FF_CPP
-    export LD=${FF_CROSS_PREFIX}-ld
-    export RANLIB=${FF_CROSS_PREFIX}-ranlib
-    export STRIP=${FF_CROSS_PREFIX}-strip
     export PKG_CONFIG_LIBDIR="${UNI_BUILD_ROOT}/build/android-$ARCH/pkgconfig"
     export ZLIB_PACKAGE_CONFIG_PATH="${PKG_CONFIG_LIBDIR}/zlib.pc"
     mkdir -p $PKG_CONFIG_LIBDIR
@@ -255,6 +234,7 @@ set_flags()
     # 4、系统路径以及系统版本等相关参数 -isysroot=<SDK_PATH> -I<SDK_PATH>/usr/include
     CFLAGS=
     HOST=
+    OUR_EXPORT=export
     if [ $ARCH = "x86_64" ];then
         HOST=x86_64-linux-android
         CFLAGS="-march=x86-64 -msse4.2 -mpopcnt -m64 -mtune=intel"
@@ -270,10 +250,9 @@ set_flags()
         echo "ext unsurported platform $ARCH !...."
         exit 1
     fi
-    CFLAGS="$CFLAGS -fno-integrated-as -fstrict-aliasing -fPIC -DANDROID -D__ANDROID_API__=${FF_ANDROID_API}"
-    
-    CFLAGS="$CFLAGS $LL_CFLAGS"
-    CPPFLAGS="${CFLAGS}"
+    CFLAGS="$CFLAGS -fPIC -D__ANDROID_API__=${FF_ANDROID_API}"
+    CXXLAGS="$CFLAGS $LL_CXXFLAGS"
+    CPPFLAGS="${CFLAGS} $LL_CPPFLAGS"
     LDFLAGS="$CFLAGS $LL_LDFLAGS"
     
     # 对于符合GNU规范的configure配置脚本(比如通过Autoconf工具生成的),它一般具有如下通用配置参数选项：
@@ -292,23 +271,60 @@ set_flags()
     SYS_ROOT_CONF="--with-sysroot=${FF_SYSROOT}"
     if [ $lib = "x264" ];then
         SYS_ROOT_CONF="--sysroot=${FF_SYSROOT}"
+        CFLAGS="$CFLAGS -fstrict-aliasing"
     elif [ $lib = "fontconfig" ];then
         SYS_ROOT_CONF=
+        CFLAGS="$CFLAGS -fstrict-aliasing"
     elif [ $lib = "fdk-aac" ];then
         CFLAGS="$CFLAGS -Wno-error=unused-command-line-argument-hard-error-in-future"
+        CFLAGS="$CFLAGS -fstrict-aliasing"
+    elif [ $lib = "ssl" ];then
+        OUR_EXPORT=unset
+        CFLAGS="$CFLAGS -DANDROID -no-integrated-as"
     else
         # C语言标准，clang编译器默认使用gnu99的C语言标准。不同的库可能使用的C语言标准不一样，不过一般影响不大，如果有影响则需要特别指定
         # -Wunused表示所有未使用给与警告(-Wunused-xx 表示具体的未使用警告,-Wno-unused-xxx 表示取消具体未使用警告)
-        CFLAGS="$CFLAGS -Wunused-function"
+        CFLAGS="$CFLAGS -Wunused-function -fstrict-aliasing"
     fi
     
     # 像CC AR CFLAGS CXXFLAGS等等这一类makefile用于配置编译器参数的环境变量一定要用export导入，否则不会生效
     export HOST
     export CFLAGS
     export CXXFLAGS
-    export CPPFLAGS
     export LDFLAGS
     export SYS_ROOT_CONF
+    export FF_SYSROOT
+    if [ $lib = "ssl" ];then
+        export PATH=$NDK_PATH/toolchains/llvm/prebuilt/$FF_HOST_OS/bin:$PATH
+        export ANDROID_NDK_HOME=$NDK_PATH
+        export CPPFLAGS
+    else
+        # 遇到问题：cygwin编译x264时环境变量不起作用。
+        # 分析原因：对于cyg编译工具的PATH环境变量，x264的编译脚本无法识别C:这样的盘符(它用:/cygdrive/c来表示C盘)
+        # 解决方案：直接指定AR，CC，CPP的绝对路径
+        #export PATH=$FF_TOOLCHAIN_PATH/bin/:$PATH
+        export PATH=$ORG_PATH
+        unset ANDROID_NDK_HOME
+        unset CPPFLAGS
+    fi
+    # 编译缓存，可以加快编译
+    #export CC="ccache ${FF_CROSS_PREFIX}-gcc"
+    # fixbug:ndk20版本之后，预编译器cpp已经内置到CC中了，所以如果这里再指定会出现找不到cpp的错误
+    #export CPP=${FF_CROSS_PREFIX}-cpp
+    AR=${FF_CROSS_PREFIX}-ar
+    # 开启该选项后x264的编译选项 -DSTAK_ALIGNMENT=会加入到AS中，导致编译失败。如果没有定义这个，
+    # -DSTAK_ALIGNMENT=会作为gccmingl的参数，则编译通过
+    CC=${FF_CC_CPP_PREFIX}-$FF_CC
+    CXX=${FF_CC_CPP_PREFIX}-$FF_CPP
+    LD=${FF_CROSS_PREFIX}-ld
+    RANLIB=${FF_CROSS_PREFIX}-ranlib
+    STRIP=${FF_CROSS_PREFIX}-strip
+    $OUR_EXPORT AR
+    $OUR_EXPORT CC
+    $OUR_EXPORT CXX
+    $OUR_EXPORT LD
+    $OUR_EXPORT RANLIB
+    $OUR_EXPORT STRIP
 }
 
 real_do_compile()
@@ -333,7 +349,6 @@ real_do_compile()
     set -e
     
     if [ $lib = "ssl" ];then
-        export ANDROID_NDK_HOME=$NDK_PATH
         local arch_flags=
         if [ $ARCH = "x86_64" ];then
             arch_flags=android-x86_64
@@ -349,7 +364,8 @@ real_do_compile()
         ./Configure \
             $CONFIGURE_FLAGS \
             $arch_flags \
-            --prefix=$PREFIX
+            --prefix=$PREFIX    \
+            no-tests
         
         # 修改编译android动态库时生成的后缀
         $OUR_SED 's/SHLIB_EXT=\.so\.\$(SHLIB_VERSION_NUMBER)/SHLIB_EXT=\.so/g' Makefile
@@ -627,7 +643,7 @@ do_compile_ffmpeg()
     done
     
     echo ""
-    echo "build ffmpeg $FF_ARCH........$FF_SYSROOT"
+    echo "build ffmpeg $FF_ARCH....."
     echo "FF_CFG_FLAGS $COMMON_FF_CFG_FLAGS"
     
     cd $FF_SOURCE

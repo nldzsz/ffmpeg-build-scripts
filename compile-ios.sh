@@ -32,11 +32,11 @@ export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
 if [ $USE_CORETEXT = "TRUE" ];then
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [ass]=TRUE [openssl]=FALSE
 )
 else
 export LIBFLAGS=(
-[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE
+[ffmpeg]=TRUE [x264]=TRUE [fdkaac]=FALSE [mp3lame]=TRUE [fribidi]=TRUE [freetype]=TRUE [expat]=TRUE [fontconfig]=TRUE [ass]=TRUE [openssl]=FALSE
 )
 fi
 
@@ -139,12 +139,13 @@ set_flags()
     fi
     
     # -target参数一般没用(用于编译一个编译器的时候才有用)
-    CFLAGS="$CFLAGS -target $HOST"
+    CFLAGS="$CFLAGS -DIOS -target $HOST"
     # -isysroot 指定了交叉编译系统的根路径，那么所有交叉编译工具或者其它相关的搜索路径都将基于此(如果不指定将按照本机/导致搜索不到路径而编译失败)
     # -I和-L指定了系统库的搜索路径，也可以在下面通过configure的配置参数--with-sysroot来指定，效果一样。
     CFLAGS="$CFLAGS -isysroot $SDKPATH -I$SDKPATH/usr/include"
     LDFLAGS="$CFLAGS -L${SDKPATH}/usr/lib -lc++"
     CXXFLAGS="$CFLAGS"
+    CPPFLAGS="$CFLAGS"
     
     # 对于符合GNU规范的configure配置脚本(比如通过Autoconf工具生成的),它一般具有如下通用配置参数选项：
     # 1、--host;表示编译出来的二进制程序(可执行程序和库)所执行的主机，如果是本机执行则无需指定。如果是交叉编译则需要指定
@@ -188,6 +189,7 @@ set_flags()
     export CFLAGS
     export CXXFLAGS
     export LDFLAGS
+    export CPPFLAGS
     export SYS_ROOT_CONF
 }
 
@@ -211,15 +213,39 @@ real_do_compile()
     set +e
     make distclean
     set -e
+    if [ $lib = "ssl" ];then
+        local arch_flags=
+        if [ $ARCH = "x86_64" ];then
+            arch_flags=darwin64-x86_64-cc
+        elif [ $ARCH = "arm64" ];then
+            arch_flags=iphoneos-cross
+        elif [ $ARCH = "arm64e" ];then
+            arch_flags=iphoneos-cross
+        else
+            echo "ext unsurported platform $ARCH !...."
+            exit 1
+        fi
+        
+        ./Configure \
+            $CONFIGURE_FLAGS \
+            $arch_flags \
+            --prefix=$PREFIX
+        
+        # 修改编译android动态库时生成的后缀
+        $OUR_SED 's/SHLIB_EXT=\.so\.\$(SHLIB_VERSION_NUMBER)/SHLIB_EXT=\.so/g' Makefile
+        
+        make -j$(get_cpu_count) && make install_sw || exit 1
+    else
+        ./configure \
+            $CONFIGURE_FLAGS \
+            --host=$HOST \
+            --prefix=$PREFIX \
+            $SYS_ROOT_CONF  \
+            $ASM_FLAGS
+            
+            make -j$(get_cpu_count) && make install || exit 1
+    fi
     
-    ./configure \
-        $CONFIGURE_FLAGS \
-        --host=$HOST \
-        --prefix=$PREFIX \
-        $SYS_ROOT_CONF  \
-        $ASM_FLAGS  \
-
-    make -j$(get_cpu_count) && make install || exit 1
     if [ $lib = "mp3lame" ];then
         create_mp3lame_package_config "${PKG_CONFIG_LIBDIR}" "${PREFIX}"
     elif [ $lib = "freetype" ];then
@@ -322,6 +348,13 @@ do_compile_fontconfig()
     
     local CONFIGURE_FLAGS="--with-pic --without-libintl-prefix --enable-static --disable-shared --disable-fast-install --disable-rpath --disable-libxml2 --disable-docs "
     real_do_compile "$CONFIGURE_FLAGS" "fontconfig" $1
+}
+#编译openssl
+do_compile_ssl()
+{
+    local CONFIGURE_FLAGS="zlib-dynamic no-shared "
+    
+    real_do_compile "$CONFIGURE_FLAGS" "ssl" $1
 }
 # 编译ffmpeg
 do_compile_ffmpeg()
@@ -486,15 +519,27 @@ do_lipo_all () {
             cp -rf $UNI_BUILD_ROOT/build/ios-arm64/$lib/include $uni_inc_dir
         fi
         ARCH_LIB_FILE=
+        ARCH_LIB_FILE2=
         for ARCH in $FF_ALL_ARCHS_IOS
         do
             if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-                ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/lib$lib.a "
+                if [ $lib = "ssl" ];then
+                    ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/libssl.a "
+                    ARCH_LIB_FILE2+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/libcrypto.a "
+                else
+                    ARCH_LIB_FILE+="$UNI_BUILD_ROOT/build/ios-$ARCH/$lib/lib/lib$lib.a "
+                fi
             fi
         done
-        if ! [ -z $ARCH_LIB_FILE ];then
-            xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/lib$lib.a
-            xcrun lipo -info $uni_lib_dir/lib$lib.a
+
+        if [ ! -z "$ARCH_LIB_FILE" ];then
+            if [ $lib = "ssl" ];then
+                xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/liblibssl.a
+                xcrun lipo -create $ARCH_LIB_FILE2 -output $uni_lib_dir/libcrypto.a
+            else
+                xcrun lipo -create $ARCH_LIB_FILE -output $uni_lib_dir/lib$lib.a
+            fi
+            xcrun lipo -info $uni_lib_dir/lib*.a
         fi
     done
 
@@ -531,7 +576,7 @@ do_lipo_all () {
         lib=${LIBS[i]};
         
         if [[ ${LIBFLAGS[i]} == "TRUE" ]]; then
-            uni_lib_dir1=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib/lib$lib.a
+            uni_lib_dir1=$UNI_BUILD_ROOT/build/ios-universal/$lib/lib/lib*.a
             cp -r $uni_lib_dir1 $uni_lib_dir
         fi
     done
