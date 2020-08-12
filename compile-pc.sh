@@ -25,8 +25,8 @@ export INTERNAL_DEBUG=FALSE
 #当前Linux/Windows/Mac操作系统的位数，如果是64位则填写x86_64，32位则填写x86
 export FF_PC_ARCH="x86_64"
 
-# 编译动态库，默认关闭;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个
-export FF_COMPILE_SHARED=FALSE
+# 编译动态库，默认开启;FALSE则关闭动态库 编译静态库;动态库和静态库同时只能开启一个，建议采用动态库方式编译，因为静态方式编译存在相互引用的各个静态库因连接顺序不对导致编译错误的问题。
+export FF_COMPILE_SHARED=TRUE
 # libass使用Coretext还是fontconfig;TRUE代表使用CORETEXT,FALSE代表使用fontconfig
 export USE_CORETEXT=FALSE
 # 是否编译这些库;如果不编译将对应的值改为FALSE即可；如果ffmpeg对应的值为TRUE时，还会将其它库引入ffmpeg中，否则单独编译其它库
