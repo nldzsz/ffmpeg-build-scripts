@@ -26,6 +26,5 @@ cd ffmpeg-build-scripts
 # 参考使用文章
 [MAC编译IOS/android的ffmpeg库(x264/fdk_aac/lamemp3)(一)](https://www.jianshu.com/p/16b14e8bb273)
 
-# 如有问题，请联系微信或者QQ交流
+# 如有问题，请联系微信加入音视频技术交流群
 微信：nldzsz
-QQ群：68895585
