@@ -21,7 +21,7 @@ set -e
 # 通过. xx.sh的方式执行shell脚本，变量会被覆盖
 . ./common.sh
 
-#export FF_ALL_ARCHS_ANDROID="armv7a arm64 x86_64"
+#export FF_ALL_ARCHS_ANDROID="armv7a arm64 x86_64 x86"
 export FF_ALL_ARCHS_ANDROID="armv7a arm64"
 # 编译的API级别 (最小5.0以上系统)
 export FF_ANDROID_API=21
@@ -127,6 +127,10 @@ set_toolchain_path()
         FF_ARCH_1=x86_64
         FF_CROSS_PREFIX=x86_64-linux-android
         FF_CC_CPP_PREFIX=x86_64-linux-android$FF_ANDROID_API
+    elif [ "$FF_ARCH" = "x86" ]; then
+        FF_ARCH_1=x86
+        FF_CROSS_PREFIX=i686-linux-android
+        FF_CC_CPP_PREFIX=i686-linux-android$FF_ANDROID_API
     else
         echo "unsurport platform !"
         exit 1
@@ -238,6 +242,9 @@ set_flags()
     if [ $ARCH = "x86_64" ];then
         HOST=x86_64-linux-android
         CFLAGS="-march=x86-64 -msse4.2 -mpopcnt -m64 -mtune=intel"
+    elif [ $ARCH = "x86" ];then
+        HOST=i686-linux-android
+        CFLAGS="-march=i686 -msse4.2 -mpopcnt -m32 -mtune=intel -mno-stackrealign"
     elif [ $ARCH = "armv7a" ];then
         HOST=arm-linux-androideabi
         # 下面是针对armv7a架构的cpu指令优化选项，这是针对cpu的，所以每个库都可以这样设定，但是有的库比如x264的./configure文件自动添加了这些配置，就不需要手动添加
@@ -352,6 +359,8 @@ real_do_compile()
         local arch_flags=
         if [ $ARCH = "x86_64" ];then
             arch_flags=android-x86_64
+        elif [ $ARCH = "x86" ];then
+            arch_flags=android-x86
         elif [ $ARCH = "armv7a" ];then
             arch_flags=android-arm
         elif [ $ARCH = "arm64" ];then
@@ -584,8 +593,13 @@ do_compile_ffmpeg()
     local FF_BUILD_NAME2=
     if [ "$FF_ARCH" = "x86_64" ]; then
         NEON_FLAG=" --disable-neon --enable-asm --enable-inline-asm"
+        TARGET_ARCH="x86_64"
         TARGET_CPU="x86_64"
-        TARGET_CPU="x86_64"
+
+    elif [ "$FF_ARCH" = "x86" ]; then
+        NEON_FLAG=" --enable-neon --enable-asm --enable-inline-asm"
+        TARGET_ARCH="x86"
+        TARGET_CPU="x86"
         
     elif [ "$FF_ARCH" = "arm64" ]; then
         NEON_FLAG=" --enable-neon --enable-asm --enable-inline-asm"
@@ -712,6 +726,8 @@ do_lipo_all () {
         ARCH2=
         if [ "$ARCH" = "x86_64" ]; then
             ARCH2=x86_64
+        elif [ "$ARCH" = "x86" ]; then
+            ARCH2=x86
         elif [ "$ARCH" = "arm64" ]; then
             ARCH2=arm64-v8a
         elif [ "$ARCH" = "armv7a" ]; then
