@@ -584,7 +584,7 @@ do_compile_ffmpeg()
     local FF_BUILD_NAME2=
     if [ "$FF_ARCH" = "x86_64" ]; then
         NEON_FLAG=" --disable-neon --enable-asm --enable-inline-asm"
-        TARGET_CPU="x86_64"
+        TARGET_ARCH="x86_64"
         TARGET_CPU="x86_64"
         
     elif [ "$FF_ARCH" = "arm64" ]; then
